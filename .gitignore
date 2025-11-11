@@ -1,0 +1,25 @@
+
+# --- Build Artifacts ---
+/build/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/Makefile
+/*.o
+/*.so
+/*.a
+/*.out
+/*.exe
+/*.dll
+/*.dylib
+
+# --- Generated Libraries ---
+libSDL3.so*
+*.obj
+
+# --- Logs & Misc ---
+*.log
+
+# --- CMake User Presets ---
+CMakeUserPresets.json
+CMakePresets.json
