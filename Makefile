@@ -19,6 +19,10 @@ TARGET = $(BUILD_DIR)/main
 
 all: $(TARGET)
 
+run: $(TARGET)
+	@echo "Running program..."
+	@$(TARGET)
+
 $(TARGET): $(SRC) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(SRC) -o $(TARGET)
 
