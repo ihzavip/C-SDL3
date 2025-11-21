@@ -2,8 +2,7 @@
 #include "helper.h"
 #include <stdio.h>
 
-int main()
-{
+int main() {
 
   printf("nice\n");
   printf("%d\n", add(1, 2));
@@ -18,8 +17,15 @@ int main()
   printf("Unknown OS\n");
 #endif
 
-  // echo_char();
-  // echo_char2();
-  // count_characters();
+  // int digits[10];
+  // for (int i = 0; i < 10; i++) {
+  //   digits[i] = i;
+  //
+  //   for (int i = 0; i < 10; i++) {
+  //     printf("%d ", digits[i]);
+  //   }
+  //   printf("\n");
+  // }
+
   return 0;
 }
