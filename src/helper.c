@@ -4,6 +4,18 @@
 
 int add(int a, int b) { return a + b; }
 
+void check_os() {
+#if defined(_WIN32)
+  printf("Windows\n");
+#elif defined(__linux__)
+  printf("Linux\n");
+#elif defined(__APPLE__)
+  printf("macOS\n");
+#else
+  printf("Unknown OS\n");
+#endif
+}
+
 void all_is_integer() {
   int i = 97;
   char c = 97;
@@ -57,6 +69,7 @@ void count_occurances() {
   while ((c = getchar()) != EOF) {
     if (c >= '0' && c <= '9') {
       // Every digit is exactly its value + 48.
+      // '0' is 48
       printf("%d, %c\n", c, c);
       ++ndigit[c - '0'];
     } else if (c == ' ' || c == '\n' || c == '\t')
@@ -68,4 +81,14 @@ void count_occurances() {
   for (i = 0; i < 10; ++i)
     printf("%d", ndigit[i]);
   printf(", white space = %d, other = %d\n", nwhite, nother);
+}
+
+int power(int base, int n) {
+  int i, p;
+  p = 1;
+
+  for (i = 1; i < n; ++i) {
+    p = p * base;
+  }
+  return p;
 }

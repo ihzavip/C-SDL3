@@ -8,5 +8,7 @@ void echo_char(void);
 void echo_char2(void);
 void count_characters(void);
 void count_occurances(void);
+void check_os(void);
+int power(int base, int n);
 
 #endif

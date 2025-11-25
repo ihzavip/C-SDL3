@@ -4,18 +4,13 @@
 
 int main() {
 
-  printf("nice\n");
   printf("%d\n", add(1, 2));
+  check_os();
+  // count_occurances();
 
-#if defined(_WIN32)
-  printf("Windows\n");
-#elif defined(__linux__)
-  printf("Linux\n");
-#elif defined(__APPLE__)
-  printf("macOS\n");
-#else
-  printf("Unknown OS\n");
-#endif
+  for (int i = 0; i < 10; i++) {
+    printf("%d %d %d\n", i, power(2, i), power(-3, i));
+  }
 
   // int digits[10];
   // for (int i = 0; i < 10; i++) {
