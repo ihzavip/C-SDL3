@@ -10,5 +10,7 @@ void count_characters(void);
 void count_occurances(void);
 void check_os(void);
 int power(int base, int n);
+int get_line(char s[], int lim);
+void copy(char to[], char from[]);
 
 #endif

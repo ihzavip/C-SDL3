@@ -28,7 +28,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
 
 /* This function runs once per frame, and is the heart of the program. */
 SDL_AppResult SDL_AppIterate(void *appstate) {
-  const char *message = "Hello World!";
+  const char *message = "why? should we have initial value";
   int w = 0, h = 0;
   float x, y;
   const float scale = 4.0f;

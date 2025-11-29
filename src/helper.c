@@ -39,10 +39,13 @@ void echo_char2() {
   while ((c = getchar()) != EOF) {
     putchar(c);
 
+    if (putchar(c) == 97)
+      printf("ini a");
+
     if (c == '\n')
       printf(" <-- this is newline\n");
 
-    printf("%d", c);
+    // printf("%c", c);
   }
 }
 
@@ -91,4 +94,30 @@ int power(int base, int n) {
     p = p * base;
   }
   return p;
+}
+
+int get_line(char s[], int lim) {
+  int c, i;
+
+  for (i = 0; i < lim - 1 && (c = getchar()) != EOF && c != '\n'; ++i) {
+    s[i] = c;            // assigning the string to s?
+    printf("%s s\n", s); // it's to get all the char
+  }
+
+  // if new line or enter assign \0? increment i by 1
+  if (c == '\n') {
+    s[i] = c;
+    ++i;
+  }
+  s[i] = '\0'; // \0 referring to end of string
+  return i;    // return the length of the string (this line)
+}
+
+// I don't understand this
+void copy(char to[], char from[]) {
+  int i;
+
+  i = 0;
+  while ((to[i] = from[i]) != '\0')
+    ++i;
 }
