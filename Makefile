@@ -12,9 +12,10 @@
 
 CC = gcc
 CFLAGS = -I./include -Wall -Wextra -g
-SRC = ./src/main.c ./src/helper.c
-OBJ = $(SRC:.c=.o)
+SRC = ./src/main.c ./src/helper.c ./game/main.c
 BUILD_DIR = build
+# OBJ = $(SRC:./src/%.c=$(BUILD_DIR)/%.o)
+OBJ = $(SRC:%.c=$(BUILD_DIR)/%.o)
 TARGET = $(BUILD_DIR)/main
 
 all: $(TARGET)
@@ -23,10 +24,21 @@ run: $(TARGET)
 	@echo "Running program..."
 	@$(TARGET)
 
-$(TARGET): $(SRC) | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(SRC) -o $(TARGET)
+debug: $(TARGET)
+	@echo "Starting debugger..."
+	@codelldb $(TARGET)
 
-# OS-specific directory creation
+# Compile: src/*.c → build/*.o
+# $(BUILD_DIR)/%.o: ./src/%.c | $(BUILD_DIR)
+# 	$(CC) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Link object files
+$(TARGET): $(OBJ) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(OBJ) -o $(TARGET)
+
 ifeq ($(OS),Windows_NT)
 $(BUILD_DIR):
 	if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)

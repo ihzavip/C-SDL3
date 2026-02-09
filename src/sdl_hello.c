@@ -1,7 +1,9 @@
 
+#include <SDL3/SDL_keycode.h>
 #define SDL_MAIN_USE_CALLBACKS 1 /* use the callbacks instead of main() */
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <stdio.h>
 
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
@@ -20,9 +22,18 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
 /* This function runs when a new event (mouse input, keypresses, etc) occurs. */
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
-  if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_QUIT) {
-    return SDL_APP_SUCCESS; /* end the program, reporting success to the OS. */
+  // if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_QUIT) {
+  //   return SDL_APP_SUCCESS; /* end the program, reporting success to the OS.
+  //   */
+  // }
+
+  if (event->type == SDL_EVENT_KEY_DOWN) {
+    if (event->key.key == SDLK_1) {
+      printf("Pressed number 1\n");
+      return SDL_APP_SUCCESS;
+    }
   }
+
   return SDL_APP_CONTINUE;
 }
 
@@ -51,4 +62,4 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 }
 
 /* This function runs once at shutdown. */
-void SDL_AppQuit(void *appstate, SDL_AppResult result) {}
+void SDL_AppQuit(void *appstate, SDL_AppResult result) { printf("NICE\n"); }

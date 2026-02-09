@@ -29,7 +29,7 @@ void echo_char() {
   // EOF == -1
   while (c != EOF) {
     putchar(c);
-    printf("%d\n", c);
+    // printf("%c\n", c);
     c = getchar();
   }
 }
@@ -120,4 +120,9 @@ void copy(char to[], char from[]) {
   i = 0;
   while ((to[i] = from[i]) != '\0')
     ++i;
+}
+
+int mutatingFunction(int *a) {
+  *a = *a + 2;
+  return *a;
 }
