@@ -7,10 +7,13 @@
 
 Build game with C and SDL3
 
+run main
+gcc src/main.c src/helper.c game/main.c -Iinclude -o main.exe
+
 Build SDL on Unix
 cmake --build ./build
 
-Build SDL on windows (Please, reconsider your life choices)
+Build SDL on windows
 cmake -S . -B build -G "MinGW Makefiles"
 
 To run
