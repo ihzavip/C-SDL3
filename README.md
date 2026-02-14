@@ -8,7 +8,7 @@
 Build game with C and SDL3
 
 run main
-gcc src/main.c src/helper.c game/main.c -Iinclude -o main.exe
+gcc src/main.c src/helper.c game/main.c -Iinclude -o build/main.exe
 
 Build SDL on Unix
 cmake --build ./build
