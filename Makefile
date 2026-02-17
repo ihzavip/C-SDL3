@@ -12,7 +12,7 @@
 
 CC = gcc
 CFLAGS = -I./include -Wall -Wextra -g
-SRC = ./src/main.c ./src/helper.c ./game/main.c
+SRC = ./src/main.c ./constants/map.c ./src/helper.c ./game/game.c ./playground/array.c
 BUILD_DIR = build
 # OBJ = $(SRC:./src/%.c=$(BUILD_DIR)/%.o)
 OBJ = $(SRC:%.c=$(BUILD_DIR)/%.o)
