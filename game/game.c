@@ -12,17 +12,11 @@
   2. Player
   3. Enemy
   4. Interaction?
-    How the interaction should be?
-    Should I add a tick like turn based movement? Or let it be dynamic?
-    Since it goes through buffer first, it would be kinda hard to make it
-  dynamic
 */
 
 struct termios orig_termios;
 
-void disable_raw_mode() { 
-  tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios); 
-}
+void disable_raw_mode() { tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios); }
 
 void enable_raw_mode() {
   tcgetattr(STDIN_FILENO, &orig_termios);
@@ -60,7 +54,7 @@ void render() {
     }
     printf("\n");
   }
-  printf("\n%s\n", message);
+  printf("%s\n", message);
 }
 
 void app_init() {
@@ -76,12 +70,8 @@ void app_update() {
     exit(0);
   }
 
-  // if (scanf(" %c", &input) != 1) {
-  //   printf("Input error or EOF. Exiting.\n");
-  //   exit(0);
-  // }
-
   if (input == 'q') {
+    // TODO: Add prompt for exitting later
     printf("Quitting game.\n");
     exit(0);
   }
@@ -105,6 +95,25 @@ void app_update() {
 
   if (map[newY][newX] == '#') {
     strcpy(message, "You hit a wall");
+    // is it the same as message = "You hit a wall"
+    return;
+  }
+
+  // TODO: Combat interaction
+  if (newX == enemy.x && newY == enemy.y) {
+    enemy.hp -= 1;
+
+    // TODO: calculate combat
+
+    snprintf(message, sizeof(message), "You hit an enemy! Enemy hp: %d",
+             enemy.hp);
+
+    if (enemy.hp <= 0) {
+      enemy.x = -1;
+      enemy.y = -1;
+      strcpy(message, "Enemy has died");
+    }
+
     return;
   }
 
