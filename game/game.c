@@ -66,9 +66,9 @@ void render() {
   }
   printf("%s\n", message);
 
-  // TODO: change format for time to HH:mm:ss
   strftime(date_str, sizeof(date_str), "%d-%m-%Y", t);
   strftime(time_str, sizeof(time_str), "%H:%M:%S", t);
+
   printf("Date: %s\n", date_str);
   printf("Time: %s\n", time_str);
 }
@@ -78,9 +78,9 @@ void app_init() {
   // Set time
   currentTime = time(NULL);
   t = localtime(&currentTime);
+  srand(time(NULL));
 
   enable_raw_mode();
-  srand(time(NULL));
   render();
 }
 
@@ -107,7 +107,6 @@ void app_update() {
   int newX = player.x;
   int newY = player.y;
 
-  game_tick();
 
   if (input == 'k')
     newY--;
@@ -128,6 +127,8 @@ void app_update() {
     // is it the same as message = "You hit a wall"
     return;
   }
+
+  game_tick();
 
   if (newX == enemy.x && newY == enemy.y) {
 
