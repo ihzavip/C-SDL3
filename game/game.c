@@ -135,6 +135,11 @@ void app_update() {
     int random = rand() % 10;
 
     // TODO: Combat interaction
+    // Hit roll
+    // The attacker generates enough attack quality to overcome the defender’s evasion quality.
+    // total += rand() % 6 + 1; // 1d6 per skill level
+    // Body part damage
+    // Performance penalties
     if (random < 8) {
       enemy.hp -= 1;
       snprintf(message, sizeof(message), "You hit an enemy! Enemy hp: %d",
