@@ -6,6 +6,8 @@
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+#include "entity.h"
+#include "combat.h"
 
 /*
   INFO:
@@ -32,14 +34,8 @@ void enable_raw_mode() {
 
 /* ------------------------------- */
 
-typedef struct {
-  int x;  // max 20
-  int y;  // max 20
-  int hp; // max 100
-} Entity;
-
-Entity player = {5, 10, 10};
-Entity enemy = {5, 11, 10};
+Entity player = {5, 10, 10, 2, 3};
+Entity enemy = {5, 11, 10, 1, 4};
 char message[50] = "";
 
 time_t currentTime;
@@ -132,23 +128,7 @@ void app_update() {
 
   if (newX == enemy.x && newY == enemy.y) {
 
-    int random = rand() % 10;
-
-    // TODO: Combat interaction
-    // Hit roll
-    // The attacker generates enough attack quality to overcome the defender’s evasion quality.
-    // total += rand() % 6 + 1; // 1d6 per skill level
-    // Body part damage
-    // Performance penalties
-    if (random < 8) {
-      enemy.hp -= 1;
-      snprintf(message, sizeof(message), "You hit an enemy! Enemy hp: %d",
-               enemy.hp);
-    } else {
-      player.hp -= 1;
-      snprintf(message, sizeof(message), "Enemy hit you! Player hp: %d",
-               player.hp);
-    }
+    handle_combat(&player, &enemy, message);
 
     if (enemy.hp <= 0) {
       enemy.x = -1;
