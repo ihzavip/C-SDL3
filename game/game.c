@@ -35,7 +35,7 @@ void enable_raw_mode() {
 /* ------------------------------- */
 
 Entity player = {5, 10, 10, 2, 3};
-Entity enemy = {5, 11, 10, 1, 4};
+Entity enemy = {5, 11, 10, 1, 6};
 char message[50] = "";
 
 time_t currentTime;
@@ -102,7 +102,6 @@ void app_update() {
 
   int newX = player.x;
   int newY = player.y;
-
 
   if (input == 'k')
     newY--;
