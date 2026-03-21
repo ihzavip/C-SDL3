@@ -34,8 +34,8 @@ void enable_raw_mode() {
 
 /* ------------------------------- */
 
-Entity player = {5, 10, 10, 2, 3};
-Entity enemy = {5, 11, 10, 1, 6};
+Entity player = {5, 10, 10, 1, 1};
+Entity enemy = {5, 11, 10, 1, 2};
 char message[50] = "";
 
 time_t currentTime;
