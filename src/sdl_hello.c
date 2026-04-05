@@ -1,3 +1,4 @@
+#include <SDL3/SDL_events.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_oldnames.h>
@@ -17,15 +18,13 @@
 
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
+static SDL_FRect rect = {100, 100, 20, 20};
 
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
-  /* as you can see from this, rendering draws over whatever was drawn before
-   * it. */
-  SDL_SetRenderDrawColor(renderer, 33, 33, 33,
-                         SDL_ALPHA_OPAQUE); /* dark gray, full alpha */
-  SDL_RenderClear(renderer);                /* start with a blank canvas. */
+  SDL_SetRenderDrawColor(renderer, 33, 33, 33, SDL_ALPHA_OPAQUE);
+  SDL_RenderClear(renderer);
 
   /* Create the window */
   if (!SDL_CreateWindowAndRenderer("Hello World", SCREEN_WIDTH, SCREEN_HEIGHT,
@@ -45,8 +44,38 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   }
 
   if (event->type == SDL_EVENT_KEY_DOWN) {
+
+    float new_x = rect.x;
+    float new_y = rect.y;
+
+    if (event->key.key == SDLK_DOWN || event->key.key == SDLK_J) {
+      new_y += rect.h;
+    }
+
+    if (event->key.key == SDLK_UP || event->key.key == SDLK_K) {
+      new_y -= rect.h;
+    }
+
+    if (event->key.key == SDLK_RIGHT || event->key.key == SDLK_L) {
+      new_x += rect.w;
+    }
+
+    if (event->key.key == SDLK_LEFT || event->key.key == SDLK_H) {
+      new_x -= rect.w;
+    }
+
+    if (new_x < 0 || new_y < 0 || new_x + rect.w > SCREEN_WIDTH ||
+        new_y + rect.h > SCREEN_HEIGHT) {
+      printf("Out of Bounds!\n");
+      return SDL_APP_CONTINUE;
+    }
+
+    rect.x = new_x;
+    rect.y = new_y;
+
+    printf("x: %f, y: %f, w: %f, h: %f\n", rect.x, rect.y, rect.w, rect.h);
+
     if (event->key.key == SDLK_Q) {
-      printf("Pressed number Q\n");
       return SDL_APP_SUCCESS;
     }
   }
@@ -62,20 +91,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   SDL_RenderClear(renderer);                /* start with a blank canvas. */
 
   // TODO: Render a box
-  static SDL_FRect rect = {100, 100, 440, 280};
 
   SDL_SetRenderDrawColor(renderer, 255, 33, 33, SDL_ALPHA_OPAQUE);
 
-  // SDL_FRect rect = {100, 100, 440, 280};
-  static float velocity = 0.2f;
-  rect.x += velocity;
-
-  if (rect.x < 0 || rect.x + rect.w > 800) {
-    velocity = -velocity;
-  }
-
   SDL_RenderFillRect(renderer, &rect);
-
   SDL_RenderPresent(renderer);
 
   // Default
