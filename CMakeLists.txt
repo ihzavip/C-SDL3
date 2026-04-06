@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(hello)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
+# include_directories(${CMAKE_SOURCE_DIR}/sdl)
 
 # set the output directory for built objects.
 # This makes sure that the dynamic library goes into the build directory automatically.

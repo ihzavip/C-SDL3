@@ -64,20 +64,12 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
       new_x -= rect.w;
     }
 
-    if (new_x < 0 || new_y < 0 || new_x + rect.w > SCREEN_WIDTH ||
-        new_y + rect.h > SCREEN_HEIGHT) {
-      printf("Out of Bounds!\n");
-      return SDL_APP_CONTINUE;
-    }
-
-    rect.x = new_x;
-    rect.y = new_y;
-
-    printf("x: %f, y: %f, w: %f, h: %f\n", rect.x, rect.y, rect.w, rect.h);
-
     if (event->key.key == SDLK_Q) {
+      printf("Pressed number Q\n");
       return SDL_APP_SUCCESS;
     }
+
+    printf("x: %f, y: %f, w: %f, h: %f\n", rect.x, rect.y, rect.w, rect.h);
   }
 
   return SDL_APP_CONTINUE;
@@ -93,6 +85,13 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   // TODO: Render a box
 
   SDL_SetRenderDrawColor(renderer, 255, 33, 33, SDL_ALPHA_OPAQUE);
+
+  // static float velocity = 0.2f;
+  // rect.x += velocity;
+  //
+  // if (rect.x < 0 || rect.x + rect.w > SCREEN_WIDTH) {
+  //   velocity = -velocity;
+  // }
 
   SDL_RenderFillRect(renderer, &rect);
   SDL_RenderPresent(renderer);

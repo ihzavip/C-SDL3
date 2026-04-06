@@ -50,3 +50,18 @@ endif
 clean:
 	rm -rf $(BUILD_DIR)
 
+
+# for topdown sdl 
+SDL_DIR = ./vendored/SDL
+SDL_BUILD = $(SDL_DIR)/build
+compile: build run
+
+build2:
+	mkdir -p out
+	gcc ./topdown/*.c -o ./out/sdl_game \
+	-I$(SDL_DIR)/include \
+	-L$(SDL_BUILD) \
+	-lSDL3
+
+run2:
+	LD_LIBRARY_PATH=$(SDL_BUILD) ./out/sdl_game
