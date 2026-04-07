@@ -1,7 +1,8 @@
 // #include "init.h"
 #include "common.h"
-#include <SDL3/SDL_main.h>
+#include "entity/player.h"
 #define SDL_MAIN_USE_CALLBACKS
+#include <SDL3/SDL_main.h>
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   AppState* state = SDL_malloc(sizeof(AppState));
@@ -33,6 +34,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
   // init_map(state->renderer);
   // init_player(state->renderer);
+  player_init();
   // init_camera(state->renderer);
 
   SDL_SetRenderLogicalPresentation(state->renderer, 320, 180, SDL_LOGICAL_PRESENTATION_LETTERBOX);

@@ -58,7 +58,7 @@ compile: build run
 
 build2:
 	mkdir -p out
-	gcc ./topdown/*.c -o ./out/sdl_game \
+	gcc ./topdown/*.c ./topdown/entity/*.c -o ./out/sdl_game \
 	-I$(SDL_DIR)/include \
 	-L$(SDL_BUILD) \
 	-lSDL3

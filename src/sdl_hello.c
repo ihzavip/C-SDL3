@@ -69,6 +69,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
       return SDL_APP_SUCCESS;
     }
 
+    rect.x = new_x;
+    rect.y = new_y;
+
     printf("x: %f, y: %f, w: %f, h: %f\n", rect.x, rect.y, rect.w, rect.h);
   }
 

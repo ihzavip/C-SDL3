@@ -9,6 +9,7 @@
 /*.so
 /*.a
 /*.out
+/*.release
 /*.exe
 /*.dll
 /*.dylib
