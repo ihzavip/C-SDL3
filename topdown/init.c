@@ -53,7 +53,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   state->camera.x = 0;
   state->camera.y = 0;
 
-  player_init();
+  player_init(state->renderer);
   enemies_init();
 
   return SDL_APP_CONTINUE;
