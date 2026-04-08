@@ -1,26 +1,29 @@
 
-# --- Build Artifacts ---
+# Build output
 /build/
+/out/
+/release/
+
+# CMake artifacts (can appear at root when configuring in-source)
 /CMakeFiles/
 /CMakeCache.txt
 /cmake_install.cmake
 /Makefile
-/*.o
-/*.so
-/*.a
-/*.out
-/*.release
-/*.exe
-/*.dll
-/*.dylib
+/compile_commands.json
 
-# --- Generated Libraries ---
-libSDL3.so*
+# Object files and compiled binaries
+*.o
+*.so
+*.a
+*.out
+*.exe
+*.dll
+*.dylib
 *.obj
 
-# --- Logs & Misc ---
+# Logs
 *.log
 
-# --- CMake User Presets ---
+# CMake presets (user-local, not shared)
 CMakeUserPresets.json
 CMakePresets.json
