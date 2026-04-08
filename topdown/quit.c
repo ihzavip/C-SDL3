@@ -1,8 +1,11 @@
 #include "common.h"
+#include "entity/player.h"
 #include <stdio.h>
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result) {
   AppState* state = (AppState*) appstate;
+
+  player_destroy(); /* free all loaded textures before destroying the renderer */
 
   SDL_DestroyRenderer(state->renderer);
   state->renderer = NULL;

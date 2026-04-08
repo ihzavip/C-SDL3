@@ -27,4 +27,5 @@ add_executable(topdown
 target_include_directories(topdown PRIVATE topdown)
 
 # Link to the actual SDL3 library.
-target_link_libraries(topdown PRIVATE SDL3::SDL3)
+find_package(SDL3_image REQUIRED)
+target_link_libraries(topdown PRIVATE SDL3::SDL3 SDL3_image::SDL3_image)

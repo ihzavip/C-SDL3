@@ -1,87 +1,189 @@
 #include "player.h"
 #include "entity.h"
 #include "../world.h"
+#include "../camera.h"
+#include <SDL3_image/SDL_image.h>
 #include <SDL3/SDL_render.h>
+#include <stdio.h>
 
-/* The player state is private to this file (static = not visible externally) */
-static Entity player;
+/* -------------------------------------------------------------------------
+ * Animation system
+ *
+ * The character has three animations (idle, run, punch), each with frames
+ * stored in a horizontal spritesheet — all frames side by side in one PNG.
+ *
+ * To draw frame N, we take a source rectangle starting at x = N * frame_width.
+ * SDL_RenderTexture lets us specify exactly which part of the texture to draw.
+ * ------------------------------------------------------------------------- */
+
+typedef enum {
+  ANIM_IDLE  = 0,
+  ANIM_RUN   = 1,
+  ANIM_PUNCH = 2,
+  ANIM_COUNT = 3,
+} AnimType;
+
+/* Number of frames in each animation's spritesheet */
+static const int frame_counts[ANIM_COUNT] = { 6, 6, 4 };
+
+/* How long (seconds) each frame is shown before advancing to the next */
+static const float frame_durations[ANIM_COUNT] = {
+  0.18f,  /* idle:  slow, relaxed */
+  0.10f,  /* run:   one step every ~100ms */
+  0.04f,  /* punch: very snappy */
+};
 
 /*
- * Attack state.
- *
- * is_attacking  — true for a short window after pressing Space.
- * attack_timer  — counts down in seconds; attack ends when it hits 0.
- *
- * Keeping the attack as a timed window (rather than just "key is held") means
- * the player commits to a swing — it feels more intentional, like Hotline Miami.
+ * Frame dimensions per (animation, direction) — each sheet can have a
+ * different frame size. Populated at load time from the actual texture
+ * dimensions so we never hardcode the wrong value.
+ * Indexed as frame_w[AnimType][Direction].
  */
-static bool  is_attacking  = false;
-static float attack_timer  = 0.0f;
+static float frame_w[ANIM_COUNT][4];
+static float frame_h[ANIM_COUNT][4];
 
-#define ATTACK_DURATION 0.15f  /* seconds the attack hitbox is active */
+/*
+ * Texture table: one texture per (animation, direction) pair.
+ * Indexed as textures[AnimType][Direction].
+ * Direction order: DIR_DOWN=0, DIR_UP=1, DIR_LEFT=2, DIR_RIGHT=3 (from entity.h)
+ */
+static SDL_Texture *textures[ANIM_COUNT][4];
 
-void player_init(void) {
+/* Animation playback state */
+static AnimType anim_state = ANIM_IDLE;
+static int      anim_frame = 0;
+static float    anim_timer = 0.0f;
+
+/* -------------------------------------------------------------------------
+ * Player entity and attack state
+ * ------------------------------------------------------------------------- */
+static Entity player;
+
+static bool  is_attacking = false;
+static float attack_timer = 0.0f;
+
+#define ATTACK_DURATION 0.15f
+
+/* -------------------------------------------------------------------------
+ * Texture loading helper
+ *
+ * IMG_LoadTexture (from SDL3_image) does everything in one call:
+ *   1. Opens the file
+ *   2. Decodes the PNG (including the alpha/transparency channel)
+ *   3. Uploads the pixels to the GPU as an SDL_Texture
+ *   4. Returns the texture (or NULL on error)
+ *
+ * We also call SDL_SetTextureBlendMode(SDL_BLENDMODE_BLEND) so the
+ * transparent pixels in the PNG are actually transparent when drawn,
+ * rather than being rendered as solid black.
+ * ------------------------------------------------------------------------- */
+static SDL_Texture *load_sheet(SDL_Renderer *renderer, const char *path) {
+  SDL_Texture *tex = IMG_LoadTexture(renderer, path);
+  if (!tex) {
+    SDL_Log("Failed to load texture '%s': %s", path, SDL_GetError());
+    return NULL;
+  }
   /*
-   * Start roughly in the middle of the world so there is room to pan in all
-   * directions. Position is the top-left corner of the sprite.
+   * Blend mode must be set to BLEND for alpha (transparency) to work.
+   * Without this, transparent pixels in the PNG are drawn as black.
    */
-  player.x      = WORLD_W * 0.5f - 4;
-  player.y      = WORLD_H * 0.5f - 4;
-  player.w      = 8;
-  player.h      = 8;
-  player.speed  = 90;           /* world pixels per second */
+  SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+  return tex;
+}
+
+void player_init(SDL_Renderer *renderer) {
+  player.x      = WORLD_W * 0.5f - 6;
+  player.y      = WORLD_H * 0.5f - 8;
+  player.w      = 13;  /* match idle frame width  */
+  player.h      = 16;  /* match idle frame height */
+  player.speed  = 40;
   player.facing = DIR_DOWN;
+
+  /*
+   * Build the texture path from parts and load each spritesheet.
+   *
+   * Path format:
+   *   media/Character/Main/<AnimDir>/Character_<dirName>_<animName>-<sheet>.png
+   *
+   * The game must be run from the project root directory so these relative
+   * paths resolve correctly. (e.g. ./build/Debug/topdown from project root)
+   *
+   * snprintf writes a formatted string into a fixed-size buffer — safer than
+   * sprintf because it cannot overflow the buffer.
+   */
+
+  /* Animation folder names, lowercase anim names, sheet suffixes */
+  const char *anim_dirs[ANIM_COUNT]  = { "Idle",  "Run",  "Punch" };
+  const char *anim_names[ANIM_COUNT] = { "idle",  "run",  "punch" };
+  const char *anim_sfx[ANIM_COUNT]   = { "Sheet6","Sheet6","Sheet4" };
+
+  /*
+   * Direction name as it appears in the filename.
+   * Indexed by Direction enum: DIR_DOWN=0, DIR_UP=1, DIR_LEFT=2, DIR_RIGHT=3
+   */
+  const char *dir_names[4] = { "down", "up", "side-left", "side" };
+
+  char path[256];
+
+  for (int a = 0; a < ANIM_COUNT; a++) {
+    for (int d = 0; d < 4; d++) {
+      snprintf(path, sizeof(path),
+        "media/Character/Main/%s/Character_%s_%s-%s.png",
+        anim_dirs[a], dir_names[d], anim_names[a], anim_sfx[a]);
+
+      textures[a][d] = load_sheet(renderer, path);
+
+      /*
+       * Read the actual texture dimensions and compute the frame size
+       * for this specific (animation, direction) pair.
+       * Each direction's sheet can have a different width — e.g. the idle
+       * "up" sheet is 66px wide (11px/frame) while "down" is 78px (13px/frame).
+       */
+      if (textures[a][d]) {
+        float tw, th;
+        SDL_GetTextureSize(textures[a][d], &tw, &th);
+        frame_w[a][d] = tw / frame_counts[a];
+        frame_h[a][d] = th;
+      }
+    }
+  }
 }
 
 void player_update(float delta) {
-  /*
-   * SDL_GetKeyboardState returns a pointer to an internal array of SDL_bool,
-   * indexed by SDL_Scancode values. Checking it every frame gives us smooth
-   * held-key movement (as opposed to SDL_EVENT_KEY_DOWN which only fires once
-   * per press).
-   */
   const bool *keys = SDL_GetKeyboardState(NULL);
 
-  float step = player.speed * delta;
+  float step     = player.speed * delta;
+  bool  is_moving = false;
 
   if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) {
     player.y     -= step;
     player.facing = DIR_UP;
+    is_moving     = true;
   }
   if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN]) {
     player.y     += step;
     player.facing = DIR_DOWN;
+    is_moving     = true;
   }
   if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT]) {
     player.x     -= step;
     player.facing = DIR_LEFT;
+    is_moving     = true;
   }
   if (keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT]) {
     player.x     += step;
     player.facing = DIR_RIGHT;
+    is_moving     = true;
   }
 
-  /*
-   * Clamp to world boundaries (not screen boundaries — the player should be
-   * able to walk off the edge of the screen but not off the world).
-   *
-   * We subtract player.w / player.h so the RIGHT and BOTTOM edges of the
-   * sprite are also kept inside, not just the top-left corner.
-   */
   player.x = SDL_clamp(player.x, 0.0f, (float)WORLD_W - player.w);
   player.y = SDL_clamp(player.y, 0.0f, (float)WORLD_H - player.h);
 
-  /* --- Attack input ------------------------------------------------------- */
-  /*
-   * Space triggers an attack. We only start a new attack if one is not already
-   * active — this prevents holding Space from creating a permanent hitbox.
-   */
+  /* Attack input */
   if (keys[SDL_SCANCODE_SPACE] && !is_attacking) {
     is_attacking = true;
     attack_timer = ATTACK_DURATION;
   }
-
-  /* Count the attack timer down; clear is_attacking when it expires */
   if (is_attacking) {
     attack_timer -= delta;
     if (attack_timer <= 0.0f) {
@@ -89,106 +191,111 @@ void player_update(float delta) {
       attack_timer = 0.0f;
     }
   }
+
+  /* --- Determine which animation should play ---------------------------- */
+  AnimType new_anim;
+  if (is_attacking)  new_anim = ANIM_PUNCH;
+  else if (is_moving) new_anim = ANIM_RUN;
+  else               new_anim = ANIM_IDLE;
+
+  /*
+   * If the animation changed, reset to frame 0.
+   * Without this, switching from run to idle would continue mid-sequence,
+   * which looks wrong.
+   */
+  if (new_anim != anim_state) {
+    anim_state = new_anim;
+    anim_frame = 0;
+    anim_timer = 0.0f;
+  }
+
+  /* --- Advance animation frame ----------------------------------------- */
+  /*
+   * Idle holds frame 0 — its 6 frames look like a walk cycle which makes
+   * the character appear to slide when standing still.
+   */
+  anim_timer += delta;
+  if (anim_timer >= frame_durations[anim_state]) {
+    anim_timer -= frame_durations[anim_state];
+
+    /* Punch plays once and holds the last frame; idle and run loop. */
+    if (anim_state == ANIM_PUNCH) {
+      if (anim_frame < frame_counts[ANIM_PUNCH] - 1)
+        anim_frame++;
+    } else {
+      anim_frame = (anim_frame + 1) % frame_counts[anim_state];
+    }
+  }
+}
+
+void player_render(SDL_Renderer *renderer, Camera camera) {
+  SDL_Texture *tex = textures[anim_state][(int)player.facing];
+
+  int   dir = (int)player.facing;
+  float fw  = frame_w[anim_state][dir];
+  float fh  = frame_h[anim_state][dir];
+
+  /*
+   * Source rect: a window into the spritesheet selecting the current frame.
+   * The sheet is laid out left to right, so frame N starts at x = N * fw.
+   */
+  SDL_FRect src = { anim_frame * fw, 0, fw, fh };
+
+  /*
+   * Destination rect: where on screen to draw it.
+   * We project the player's world position through the camera.
+   * The sprite size (fw × fh) is used directly — no scaling needed since
+   * SDL_SetRenderLogicalPresentation already handles window scaling for us.
+   */
+  SDL_FRect world_rect = { player.x, player.y, player.w, player.h };
+  SDL_FRect dst        = camera_project(camera, world_rect);
+
+  if (tex) {
+    SDL_RenderTexture(renderer, tex, &src, &dst);
+  } else {
+    /* Fallback: colored rect if texture failed to load */
+    SDL_SetRenderDrawColor(renderer, 80, 200, 100, 255);
+    SDL_RenderFillRect(renderer, &dst);
+  }
+
+  /* Attack hitbox — semi-transparent yellow overlay, useful for learning */
+  if (is_attacking) {
+    SDL_FRect world_attack  = player_get_attack_rect();
+    SDL_FRect screen_attack = camera_project(camera, world_attack);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 80, 80);
+    SDL_RenderFillRect(renderer, &screen_attack);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+  }
+}
+
+void player_destroy(void) {
+  /*
+   * SDL_DestroyTexture frees the GPU memory used by the texture.
+   * Always destroy textures you no longer need — SDL does not do it for you.
+   */
+  for (int a = 0; a < ANIM_COUNT; a++)
+    for (int d = 0; d < 4; d++)
+      if (textures[a][d]) SDL_DestroyTexture(textures[a][d]);
 }
 
 /* -------------------------------------------------------------------------
- * Getters — read-only access for other modules
+ * Getters
  * ------------------------------------------------------------------------- */
 
 SDL_FRect player_get_rect(void) {
   return (SDL_FRect){ player.x, player.y, player.w, player.h };
 }
 
-bool player_is_attacking(void) {
-  return is_attacking;
-}
+bool player_is_attacking(void) { return is_attacking; }
 
 SDL_FRect player_get_attack_rect(void) {
-  /*
-   * The attack hitbox is a sprite-sized rectangle placed directly in front of
-   * the player in the direction they are facing. This is what actually checks
-   * whether an enemy gets hit.
-   *
-   * The 1-pixel gap between the player body and the hitbox is intentional —
-   * it prevents the hitbox from overlapping the player's own rect, which keeps
-   * collision logic clean if you add player-vs-enemy collision later.
-   */
-  float ax = player.x;
-  float ay = player.y;
-
+  float ax = player.x, ay = player.y;
   switch (player.facing) {
     case DIR_UP:    ay -= player.h + 1; break;
     case DIR_DOWN:  ay += player.h + 1; break;
     case DIR_LEFT:  ax -= player.w + 1; break;
     case DIR_RIGHT: ax += player.w + 1; break;
   }
-
   return (SDL_FRect){ ax, ay, player.w, player.h };
-}
-
-/* -------------------------------------------------------------------------
- * Rendering
- * ------------------------------------------------------------------------- */
-
-void player_render(SDL_Renderer *renderer, Camera camera) {
-  /*
-   * All positions are in world space. We pass each rect through camera_project
-   * to get the screen-space position before handing it to SDL.
-   */
-
-  SDL_FRect world_body = { player.x, player.y, player.w, player.h };
-  SDL_FRect sr         = camera_project(camera, world_body); /* screen rect */
-
-  /* --- 1. Drop shadow ----------------------------------------------------- */
-  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 80);
-  SDL_FRect shadow = { sr.x + 2, sr.y + 2, sr.w, sr.h };
-  SDL_RenderFillRect(renderer, &shadow);
-  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
-
-  /* --- 2. Outline --------------------------------------------------------- */
-  SDL_SetRenderDrawColor(renderer, 30, 60, 30, 255);
-  SDL_FRect outline = { sr.x - 1, sr.y - 1, sr.w + 2, sr.h + 2 };
-  SDL_RenderFillRect(renderer, &outline);
-
-  /* --- 3. Body ------------------------------------------------------------ */
-  /*
-   * Flash brighter white-green while attacking — gives immediate visual
-   * feedback that the swing is active.
-   */
-  if (is_attacking)
-    SDL_SetRenderDrawColor(renderer, 180, 255, 180, 255);
-  else
-    SDL_SetRenderDrawColor(renderer, 80, 200, 100, 255);
-  SDL_RenderFillRect(renderer, &sr);
-
-  /* --- 4. Facing pip ------------------------------------------------------ */
-  SDL_SetRenderDrawColor(renderer, 220, 255, 220, 255);
-  float cx = sr.x + sr.w * 0.5f - 1;
-  float cy = sr.y + sr.h * 0.5f - 1;
-  SDL_FRect pip;
-  switch (player.facing) {
-    case DIR_UP:    pip = (SDL_FRect){ cx,            sr.y + 1,          2, 2 }; break;
-    case DIR_DOWN:  pip = (SDL_FRect){ cx,            sr.y + sr.h - 3,   2, 2 }; break;
-    case DIR_LEFT:  pip = (SDL_FRect){ sr.x + 1,      cy,                2, 2 }; break;
-    case DIR_RIGHT: pip = (SDL_FRect){ sr.x + sr.w - 3, cy,             2, 2 }; break;
-    default:        pip = (SDL_FRect){ cx,            cy,                2, 2 }; break;
-  }
-  SDL_RenderFillRect(renderer, &pip);
-
-  /* --- 5. Attack hitbox (debug visualisation) ----------------------------- */
-  /*
-   * Drawing the hitbox lets you SEE exactly what you are hitting.
-   * This is very useful while learning — you can verify the attack range feels
-   * right and tweak ATTACK_DURATION or the rect size accordingly.
-   */
-  if (is_attacking) {
-    SDL_FRect world_attack  = player_get_attack_rect();
-    SDL_FRect screen_attack = camera_project(camera, world_attack);
-
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(renderer, 255, 255, 100, 100); /* yellow, semi-transparent */
-    SDL_RenderFillRect(renderer, &screen_attack);
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
-  }
 }
