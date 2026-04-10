@@ -287,7 +287,8 @@ SDL_FRect player_get_rect(void) {
   return (SDL_FRect){ player.x, player.y, player.w, player.h };
 }
 
-bool player_is_attacking(void) { return is_attacking; }
+bool      player_is_attacking(void) { return is_attacking; }
+Direction player_get_facing(void)   { return player.facing; }
 
 SDL_FRect player_get_attack_rect(void) {
   float ax = player.x, ay = player.y;

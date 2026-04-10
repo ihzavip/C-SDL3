@@ -1,5 +1,6 @@
 #pragma once
 #include "../camera.h"
+#include "entity.h"
 #include <SDL3/SDL.h>
 
 /*
@@ -15,3 +16,4 @@ void player_destroy(void); /* free all loaded textures */
 SDL_FRect player_get_rect(void);
 SDL_FRect player_get_attack_rect(void);
 bool      player_is_attacking(void);
+Direction player_get_facing(void);
