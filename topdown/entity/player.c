@@ -62,7 +62,8 @@ static Entity player;
 static bool  is_attacking = false;
 static float attack_timer = 0.0f;
 
-#define ATTACK_DURATION 0.15f
+#define ATTACK_DURATION   0.15f
+#define PUNCH_RENDER_SCALE 1.0f  /* punch sprite drawn at 2× size */
 
 /* -------------------------------------------------------------------------
  * Texture loading helper
@@ -247,7 +248,14 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
    * The sprite size (fw × fh) is used directly — no scaling needed since
    * SDL_SetRenderLogicalPresentation already handles window scaling for us.
    */
-  SDL_FRect world_rect = { player.x, player.y, player.w, player.h };
+  float render_w = fw;
+  float render_h = fh;
+  if (anim_state == ANIM_PUNCH) {
+    render_w = fw * PUNCH_RENDER_SCALE;
+    render_h = fh * PUNCH_RENDER_SCALE;
+  }
+
+  SDL_FRect world_rect = { player.x, player.y, render_w, render_h };
   SDL_FRect dst        = camera_project(camera, world_rect);
 
   if (tex) {
@@ -293,10 +301,10 @@ Direction player_get_facing(void)   { return player.facing; }
 SDL_FRect player_get_attack_rect(void) {
   float ax = player.x, ay = player.y;
   switch (player.facing) {
-    case DIR_UP:    ay -= player.h + 1; break;
-    case DIR_DOWN:  ay += player.h + 1; break;
-    case DIR_LEFT:  ax -= player.w + 1; break;
-    case DIR_RIGHT: ax += player.w + 1; break;
+    case DIR_UP:    ay -= player.h; break;
+    case DIR_DOWN:  ay += player.h; break;
+    case DIR_LEFT:  ax -= player.w; break;
+    case DIR_RIGHT: ax += player.w; break;
   }
   return (SDL_FRect){ ax, ay, player.w, player.h };
 }
