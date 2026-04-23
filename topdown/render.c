@@ -12,7 +12,7 @@ void app_render(void *appstate) {
    * Fill the entire frame with a dark background colour before drawing
    * anything. Without this, the previous frame bleeds through.
    */
-  SDL_SetRenderDrawColor(state->renderer, 25, 30, 25, 255);
+  SDL_SetRenderDrawColor(state->renderer, 60, 80, 60, 255);
   SDL_RenderClear(state->renderer);
 
   /* --- World grid ------------------------------------------------------- */
@@ -50,6 +50,7 @@ void app_render(void *appstate) {
    */
   enemies_render(state->renderer, state->camera);
   player_render(state->renderer, state->camera);
+  // player_render_debug(state->renderer, state->camera); /* DEBUG: comment out to hide coords */
 
   /* --- Present ---------------------------------------------------------- */
   /*

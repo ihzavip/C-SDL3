@@ -1,6 +1,7 @@
 #include "common.h"
-#include "entity/player.h"
 #include "entity/enemy.h"
+#include "entity/player.h"
+#include "world.h"
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
 
@@ -37,6 +38,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
   /*
    * SDL_SetRenderLogicalPresentation tells SDL to treat the renderer as if it
+
    * were exactly 320×180 pixels, regardless of the actual window size.
    * SDL scales and letterboxes automatically.
    *
@@ -45,7 +47,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
    *
    * These numbers MUST match LOGICAL_W / LOGICAL_H in world.h.
    */
-  SDL_SetRenderLogicalPresentation(state->renderer, 320, 180,
+  SDL_SetRenderLogicalPresentation(state->renderer, LOGICAL_W, LOGICAL_H,
                                    SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
   /* Initialise camera at world origin — camera_follow() will correct it

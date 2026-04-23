@@ -62,8 +62,8 @@ static Entity player;
 static bool  is_attacking = false;
 static float attack_timer = 0.0f;
 
-#define ATTACK_DURATION   0.15f
-#define PUNCH_RENDER_SCALE 1.0f  /* punch sprite drawn at 2× size */
+#define ATTACK_DURATION   0.20f// 0,15
+#define PUNCH_RENDER_SCALE 1.0f  /* punch sprite drawn at 2× size if value 2.0f */
 
 /* -------------------------------------------------------------------------
  * Texture loading helper
@@ -97,7 +97,7 @@ void player_init(SDL_Renderer *renderer) {
   player.y      = WORLD_H * 0.5f - 8;
   player.w      = 13;  /* match idle frame width  */
   player.h      = 16;  /* match idle frame height */
-  player.speed  = 40;
+  player.speed  = 60;
   player.facing = DIR_DOWN;
 
   /*
@@ -255,8 +255,17 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
     render_h = fh * PUNCH_RENDER_SCALE;
   }
 
-  SDL_FRect world_rect = { player.x, player.y, render_w, render_h };
-  SDL_FRect dst        = camera_project(camera, world_rect);
+  SDL_FRect world_rect = {player.x, player.y, render_w, render_h};
+
+  /* Left punch: wider frame has body on the right side, so shift draw position
+     left by the extra width to keep the body visually anchored. */
+  if (anim_state == ANIM_PUNCH && player.facing == DIR_LEFT)
+    world_rect.x -= fw - frame_w[ANIM_IDLE][(int)player.facing];
+
+  /*
+  dst is destination
+  */
+  SDL_FRect dst = camera_project(camera, world_rect);
 
   if (tex) {
     SDL_RenderTexture(renderer, tex, &src, &dst);
@@ -267,14 +276,29 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
   }
 
   /* Attack hitbox — semi-transparent yellow overlay, useful for learning */
-  if (is_attacking) {
+  /* if (is_attacking) {
     SDL_FRect world_attack  = player_get_attack_rect();
     SDL_FRect screen_attack = camera_project(camera, world_attack);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 255, 255, 80, 80);
     SDL_RenderFillRect(renderer, &screen_attack);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
-  }
+  } */
+}
+
+void player_render_debug(SDL_Renderer *renderer, Camera camera) {
+  char buf[32];
+  SDL_snprintf(buf, sizeof(buf), "x:%.0f y:%.0f", player.x, player.y);
+
+  /*
+   * Position the label 2px below the bottom edge of the sprite in screen space.
+   * SDL_RenderDebugText uses an 8px tall bitmap font.
+   */
+  SDL_FRect world_rect = {player.x, player.y, player.w, player.h};
+  SDL_FRect dst = camera_project(camera, world_rect);
+
+  SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+  SDL_RenderDebugText(renderer, dst.x, dst.y + dst.h + 2, buf);
 }
 
 void player_destroy(void) {
