@@ -63,7 +63,6 @@ static bool  is_attacking = false;
 static float attack_timer = 0.0f;
 
 #define ATTACK_DURATION   0.20f// 0,15
-#define PUNCH_RENDER_SCALE 1.0f  /* punch sprite drawn at 2× size if value 2.0f */
 
 /* -------------------------------------------------------------------------
  * Texture loading helper
@@ -141,10 +140,11 @@ void player_init(SDL_Renderer *renderer) {
        * "up" sheet is 66px wide (11px/frame) while "down" is 78px (13px/frame).
        */
       if (textures[a][d]) {
-        float tw, th;
-        SDL_GetTextureSize(textures[a][d], &tw, &th);
-        frame_w[a][d] = tw / frame_counts[a];
-        frame_h[a][d] = th;
+        float target_width, target_height;
+        SDL_GetTextureSize(textures[a][d], &target_width, &target_height);
+        printf("tw: %f", target_width);
+        frame_w[a][d] = target_width / frame_counts[a];
+        frame_h[a][d] = target_height;
       }
     }
   }
@@ -232,35 +232,31 @@ void player_update(float delta) {
 void player_render(SDL_Renderer *renderer, Camera camera) {
   SDL_Texture *tex = textures[anim_state][(int)player.facing];
 
-  int   dir = (int)player.facing;
-  float fw  = frame_w[anim_state][dir];
-  float fh  = frame_h[anim_state][dir];
+  int   dir          = (int)player.facing;
+  float frame_width  = frame_w[anim_state][dir];
+  float frame_height = frame_h[anim_state][dir];
 
   /*
    * Source rect: a window into the spritesheet selecting the current frame.
-   * The sheet is laid out left to right, so frame N starts at x = N * fw.
+   * The sheet is laid out left to right, so frame N starts at x = N * frame_width.
    */
-  SDL_FRect src = { anim_frame * fw, 0, fw, fh };
+  SDL_FRect src = { anim_frame * frame_width, 0, frame_width, frame_height };
 
   /*
    * Destination rect: where on screen to draw it.
    * We project the player's world position through the camera.
-   * The sprite size (fw × fh) is used directly — no scaling needed since
+   * The sprite size is used directly — no scaling needed since
    * SDL_SetRenderLogicalPresentation already handles window scaling for us.
    */
-  float render_w = fw;
-  float render_h = fh;
-  if (anim_state == ANIM_PUNCH) {
-    render_w = fw * PUNCH_RENDER_SCALE;
-    render_h = fh * PUNCH_RENDER_SCALE;
-  }
+  float render_w = frame_width;
+  float render_h = frame_height;
 
   SDL_FRect world_rect = {player.x, player.y, render_w, render_h};
 
   /* Left punch: wider frame has body on the right side, so shift draw position
      left by the extra width to keep the body visually anchored. */
   if (anim_state == ANIM_PUNCH && player.facing == DIR_LEFT)
-    world_rect.x -= fw - frame_w[ANIM_IDLE][(int)player.facing];
+    world_rect.x -= frame_width - frame_w[ANIM_IDLE][(int)player.facing];
 
   /*
   dst is destination
@@ -274,6 +270,15 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
     SDL_SetRenderDrawColor(renderer, 80, 200, 100, 255);
     SDL_RenderFillRect(renderer, &dst);
   }
+
+  /* DEBUG boxes — comment out either line to hide it
+   * Green  = sprite frame  (frame_width × frame_height)
+   * Red    = physics box   (player.w × player.h) */
+  SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+  SDL_RenderRect(renderer, &dst);
+  SDL_FRect physics_screen = camera_project(camera, (SDL_FRect){player.x, player.y, player.w, player.h});
+  SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+  SDL_RenderRect(renderer, &physics_screen);
 
   /* Attack hitbox — semi-transparent yellow overlay, useful for learning */
   /* if (is_attacking) {
