@@ -101,7 +101,9 @@ static SDL_Texture *load_sheet(SDL_Renderer *renderer, const char *path) {
 }
 
 void player_init(SDL_Renderer *renderer) {
-  player.x      = WORLD_W * 0.5f - 6;
+
+  // Why not player width / 2? Float
+  player.x      = WORLD_W * 0.5f - 6; 
   player.y      = WORLD_H * 0.5f - 8;
   player.w      = 13;  /* match idle frame width  */
   player.h      = 16;  /* match idle frame height */
