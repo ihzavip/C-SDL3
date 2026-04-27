@@ -49,3 +49,14 @@ A separate turn-based game rendered with `printf` and raw terminal mode (`termio
 ### `src/sdl_hello.c`
 
 An earlier SDL3 prototype with global static state. Superseded by `topdown/`. Ignore it.
+
+## Conventions
+
+- New entity types go in `topdown/entity/<name>.c` + `<name>.h`, following the `_init/_update/_render` pattern
+- No globals — all shared state goes through `AppState` in `common.h`
+- `game/` and `src/sdl_hello.c` are not under active development — don't modify them
+
+## Gotchas
+
+- `LOGICAL_W` / `LOGICAL_H` in `player.c` must stay in sync with the renderer resolution set in `init.c`
+- First configure takes several minutes — SDL3 is built from source under `vendored/SDL`

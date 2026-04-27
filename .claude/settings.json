@@ -1,0 +1,20 @@
+{
+  "allowedTools": [
+    "Bash(cmake*)",
+    "Bash(make*)",
+    "Bash(./build/*)",
+    "Bash(./build/Debug/*)",
+    "Bash(./build/Release/*)"
+  ],
+  "mcpServers": {
+    "language-server": {
+      "command": "/home/lucy/go/bin/mcp-language-server",
+      "args": [
+        "--workspace", "/home/lucy/Documents/c",
+        "--lsp", "/usr/bin/clangd",
+        "--",
+        "--compile-commands-dir=/home/lucy/Documents/c/build"
+      ]
+    }
+  }
+}

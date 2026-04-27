@@ -62,7 +62,7 @@ static Entity player;
 static bool  is_attacking = false;
 static float attack_timer = 0.0f;
 
-#define ATTACK_DURATION 0.15f
+#define ATTACK_DURATION   0.20f// 0,15
 
 /* -------------------------------------------------------------------------
  * Texture loading helper
@@ -96,7 +96,7 @@ void player_init(SDL_Renderer *renderer) {
   player.y      = WORLD_H * 0.5f - 8;
   player.w      = 13;  /* match idle frame width  */
   player.h      = 16;  /* match idle frame height */
-  player.speed  = 40;
+  player.speed  = 60;
   player.facing = DIR_DOWN;
 
   /*
@@ -140,10 +140,11 @@ void player_init(SDL_Renderer *renderer) {
        * "up" sheet is 66px wide (11px/frame) while "down" is 78px (13px/frame).
        */
       if (textures[a][d]) {
-        float tw, th;
-        SDL_GetTextureSize(textures[a][d], &tw, &th);
-        frame_w[a][d] = tw / frame_counts[a];
-        frame_h[a][d] = th;
+        float target_width, target_height;
+        SDL_GetTextureSize(textures[a][d], &target_width, &target_height);
+        printf("tw: %f", target_width);
+        frame_w[a][d] = target_width / frame_counts[a];
+        frame_h[a][d] = target_height;
       }
     }
   }
@@ -231,24 +232,36 @@ void player_update(float delta) {
 void player_render(SDL_Renderer *renderer, Camera camera) {
   SDL_Texture *tex = textures[anim_state][(int)player.facing];
 
-  int   dir = (int)player.facing;
-  float fw  = frame_w[anim_state][dir];
-  float fh  = frame_h[anim_state][dir];
+  int   dir          = (int)player.facing;
+  float frame_width  = frame_w[anim_state][dir];
+  float frame_height = frame_h[anim_state][dir];
 
   /*
    * Source rect: a window into the spritesheet selecting the current frame.
-   * The sheet is laid out left to right, so frame N starts at x = N * fw.
+   * The sheet is laid out left to right, so frame N starts at x = N * frame_width.
    */
-  SDL_FRect src = { anim_frame * fw, 0, fw, fh };
+  SDL_FRect src = { anim_frame * frame_width, 0, frame_width, frame_height };
 
   /*
    * Destination rect: where on screen to draw it.
    * We project the player's world position through the camera.
-   * The sprite size (fw × fh) is used directly — no scaling needed since
+   * The sprite size is used directly — no scaling needed since
    * SDL_SetRenderLogicalPresentation already handles window scaling for us.
    */
-  SDL_FRect world_rect = { player.x, player.y, player.w, player.h };
-  SDL_FRect dst        = camera_project(camera, world_rect);
+  float render_w = frame_width;
+  float render_h = frame_height;
+
+  SDL_FRect world_rect = {player.x, player.y, render_w, render_h};
+
+  /* Left punch: wider frame has body on the right side, so shift draw position
+     left by the extra width to keep the body visually anchored. */
+  if (anim_state == ANIM_PUNCH && player.facing == DIR_LEFT)
+    world_rect.x -= frame_width - frame_w[ANIM_IDLE][(int)player.facing];
+
+  /*
+  dst is destination
+  */
+  SDL_FRect dst = camera_project(camera, world_rect);
 
   if (tex) {
     SDL_RenderTexture(renderer, tex, &src, &dst);
@@ -258,15 +271,39 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
     SDL_RenderFillRect(renderer, &dst);
   }
 
+  /* DEBUG boxes — comment out either line to hide it
+   * Green  = sprite frame  (frame_width × frame_height)
+   * Red    = physics box   (player.w × player.h) */
+  SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+  SDL_RenderRect(renderer, &dst);
+  SDL_FRect physics_screen = camera_project(camera, (SDL_FRect){player.x, player.y, player.w, player.h});
+  SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+  SDL_RenderRect(renderer, &physics_screen);
+
   /* Attack hitbox — semi-transparent yellow overlay, useful for learning */
-  if (is_attacking) {
+  /* if (is_attacking) {
     SDL_FRect world_attack  = player_get_attack_rect();
     SDL_FRect screen_attack = camera_project(camera, world_attack);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 255, 255, 80, 80);
     SDL_RenderFillRect(renderer, &screen_attack);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
-  }
+  } */
+}
+
+void player_render_debug(SDL_Renderer *renderer, Camera camera) {
+  char buf[32];
+  SDL_snprintf(buf, sizeof(buf), "x:%.0f y:%.0f", player.x, player.y);
+
+  /*
+   * Position the label 2px below the bottom edge of the sprite in screen space.
+   * SDL_RenderDebugText uses an 8px tall bitmap font.
+   */
+  SDL_FRect world_rect = {player.x, player.y, player.w, player.h};
+  SDL_FRect dst = camera_project(camera, world_rect);
+
+  SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+  SDL_RenderDebugText(renderer, dst.x, dst.y + dst.h + 2, buf);
 }
 
 void player_destroy(void) {
@@ -287,15 +324,16 @@ SDL_FRect player_get_rect(void) {
   return (SDL_FRect){ player.x, player.y, player.w, player.h };
 }
 
-bool player_is_attacking(void) { return is_attacking; }
+bool      player_is_attacking(void) { return is_attacking; }
+Direction player_get_facing(void)   { return player.facing; }
 
 SDL_FRect player_get_attack_rect(void) {
   float ax = player.x, ay = player.y;
   switch (player.facing) {
-    case DIR_UP:    ay -= player.h + 1; break;
-    case DIR_DOWN:  ay += player.h + 1; break;
-    case DIR_LEFT:  ax -= player.w + 1; break;
-    case DIR_RIGHT: ax += player.w + 1; break;
+    case DIR_UP:    ay -= player.h; break;
+    case DIR_DOWN:  ay += player.h; break;
+    case DIR_LEFT:  ax -= player.w; break;
+    case DIR_RIGHT: ax += player.w; break;
   }
   return (SDL_FRect){ ax, ay, player.w, player.h };
 }

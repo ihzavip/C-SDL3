@@ -14,8 +14,8 @@
  * in init.c — if you change one, change the other.
  */
 
-#define WORLD_W   640   /* total world width  in logical pixels */
-#define WORLD_H   360   /* total world height in logical pixels */
+#define WORLD_W 640 /* total world width  in logical pixels */
+#define WORLD_H 360 /* total world height in logical pixels */
 
-#define LOGICAL_W 320   /* camera viewport width  */
-#define LOGICAL_H 180   /* camera viewport height */
+#define LOGICAL_W 320 /* camera viewport width  */
+#define LOGICAL_H 180 /* camera viewport height */
