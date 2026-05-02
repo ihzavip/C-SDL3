@@ -39,19 +39,19 @@ static const float frame_durations[ANIM_COUNT] = {
  * dimensions so we never hardcode the wrong value.
  * Indexed as frame_w[AnimType][Direction].
  */
-static float frame_w[ANIM_COUNT][4];
-static float frame_h[ANIM_COUNT][4];
+static float frame_w[ANIM_COUNT][DIR_COUNT];
+static float frame_h[ANIM_COUNT][DIR_COUNT];
 
 /* How far the body's left edge sits from the frame's left edge, per (anim, dir).
    Non-zero when the frame is wider than the body (e.g. punch-left fist extends left). */
-static float anchor_x[ANIM_COUNT][4];
+static float anchor_x[ANIM_COUNT][DIR_COUNT];
 
 /*
  * Texture table: one texture per (animation, direction) pair.
  * Indexed as textures[AnimType][Direction].
  * Direction order: DIR_DOWN=0, DIR_UP=1, DIR_LEFT=2, DIR_RIGHT=3 (from entity.h)
  */
-static SDL_Texture *textures[ANIM_COUNT][4];
+static SDL_Texture *textures[ANIM_COUNT][DIR_COUNT];
 
 /* Animation playback state */
 static AnimType anim_state = ANIM_IDLE;
@@ -130,12 +130,12 @@ void player_init(SDL_Renderer *renderer) {
    * Direction name as it appears in the filename.
    * Indexed by Direction enum: DIR_DOWN=0, DIR_UP=1, DIR_LEFT=2, DIR_RIGHT=3
    */
-  const char *dir_names[4] = { "down", "up", "side-left", "side" };
+  const char *dir_names[DIR_COUNT] = { "down", "up", "side-left", "side" };
 
   char path[256];
 
   for (int a = 0; a < ANIM_COUNT; a++) {
-    for (int d = 0; d < 4; d++) {
+    for (int d = 0; d < DIR_COUNT; d++) {
       snprintf(path, sizeof(path),
         "media/Character/Main/%s/Character_%s_%s-%s.png",
         anim_dirs[a], dir_names[d], anim_names[a], anim_sfx[a]);
@@ -279,7 +279,11 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
   SDL_FRect dst = camera_project(camera, world_rect);
 
   if (tex) {
+    /* Blink red while invincible: toggle tint every 0.1s */
+    if (hit_cooldown > 0.0f && ((int)(hit_cooldown / 0.1f) % 2) == 0)
+      SDL_SetTextureColorMod(tex, 255, 80, 80);
     SDL_RenderTexture(renderer, tex, &src, &dst);
+    SDL_SetTextureColorMod(tex, 255, 255, 255);
   } else {
     /* Fallback: colored rect if texture failed to load */
     SDL_SetRenderDrawColor(renderer, 80, 200, 100, 255);
@@ -340,7 +344,7 @@ void player_destroy(void) {
    * Always destroy textures you no longer need — SDL does not do it for you.
    */
   for (int a = 0; a < ANIM_COUNT; a++)
-    for (int d = 0; d < 4; d++)
+    for (int d = 0; d < DIR_COUNT; d++)
       if (textures[a][d]) SDL_DestroyTexture(textures[a][d]);
 }
 

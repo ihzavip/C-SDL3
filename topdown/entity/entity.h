@@ -16,6 +16,7 @@ typedef enum {
   DIR_UP    = 1,
   DIR_LEFT  = 2,
   DIR_RIGHT = 3,
+  DIR_COUNT
 } Direction;
 
 typedef struct {
