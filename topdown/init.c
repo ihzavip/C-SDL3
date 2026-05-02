@@ -2,6 +2,7 @@
 #include "entity/enemy.h"
 #include "entity/player.h"
 #include "tilemap.h"
+#include "weapon.h"
 #include "world.h"
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
@@ -57,6 +58,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   state->camera.y = 0;
 
   player_init(state->renderer);
+  SDL_FRect pr = player_get_rect();
+  weapon_init(state->renderer, pr.x + 20, pr.y);
   enemies_load_textures(state->renderer);
   enemies_init();
   tilemap_init(state->renderer);

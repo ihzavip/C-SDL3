@@ -34,6 +34,7 @@ add_executable(topdown
   topdown/quit.c
   topdown/camera.c
   topdown/tilemap.c
+  topdown/weapon.c
   topdown/entity/player.c
   topdown/entity/enemy.c
 )

@@ -17,20 +17,22 @@
  * ------------------------------------------------------------------------- */
 
 typedef enum {
-  ANIM_IDLE  = 0,
-  ANIM_RUN   = 1,
-  ANIM_PUNCH = 2,
-  ANIM_COUNT = 3,
+  ANIM_IDLE   = 0,
+  ANIM_RUN    = 1,
+  ANIM_PUNCH  = 2,
+  ANIM_PICKUP = 3,
+  ANIM_COUNT  = 4,
 } AnimType;
 
 /* Number of frames in each animation's spritesheet */
-static const int frame_counts[ANIM_COUNT] = { 6, 6, 4 };
+static const int frame_counts[ANIM_COUNT] = { 6, 6, 4, 3 };
 
 /* How long (seconds) each frame is shown before advancing to the next */
 static const float frame_durations[ANIM_COUNT] = {
   0.18f,  /* idle:  slow, relaxed */
   0.10f,  /* run:   one step every ~100ms */
   0.04f,  /* punch: very snappy */
+  0.08f,  /* pickup: 3 frames x 80ms = 240ms total */
 };
 
 /*
@@ -45,6 +47,15 @@ static float frame_h[ANIM_COUNT][DIR_COUNT];
 /* How far the body's left edge sits from the frame's left edge, per (anim, dir).
    Non-zero when the frame is wider than the body (e.g. punch-left fist extends left). */
 static float anchor_x[ANIM_COUNT][DIR_COUNT];
+
+/* Bat character sprite set — loaded at init, swapped in when bat is equipped */
+static SDL_Texture *bat_textures[ANIM_COUNT][DIR_COUNT];
+static float bat_frame_w[ANIM_COUNT][DIR_COUNT];
+static float bat_frame_h[ANIM_COUNT][DIR_COUNT];
+static float bat_anchor_x[ANIM_COUNT][DIR_COUNT];
+
+static bool bat_equipped  = false;
+static bool is_picking_up = false;
 
 /*
  * Texture table: one texture per (animation, direction) pair.
@@ -125,9 +136,9 @@ void player_init(SDL_Renderer *renderer) {
    */
 
   /* Animation folder names, lowercase anim names, sheet suffixes */
-  const char *anim_dirs[ANIM_COUNT]  = { "Idle",  "Run",  "Punch" };
-  const char *anim_names[ANIM_COUNT] = { "idle",  "run",  "punch" };
-  const char *anim_sfx[ANIM_COUNT]   = { "Sheet6","Sheet6","Sheet4" };
+  const char *anim_dirs[ANIM_COUNT]  = { "Idle",  "Run",  "Punch",   "Pick-up" };
+  const char *anim_names[ANIM_COUNT] = { "idle",  "run",  "punch",   "Pick-up" };
+  const char *anim_sfx[ANIM_COUNT]   = { "Sheet6","Sheet6","Sheet4", "Sheet3"  };
 
   /*
    * Direction name as it appears in the filename.
@@ -166,6 +177,37 @@ void player_init(SDL_Renderer *renderer) {
   for (int a = 0; a < ANIM_COUNT; a++) {
     float extra = frame_w[a][DIR_LEFT] - frame_w[ANIM_IDLE][DIR_LEFT];
     anchor_x[a][DIR_LEFT] = extra > 0 ? extra : 0;
+  }
+
+  /* Load bat character sprites — used after the bat is picked up.
+     ANIM_IDLE and ANIM_RUN share the same idle-and-run sheet (loaded separately).
+     ANIM_PICKUP is not used for the bat set — bat_textures[ANIM_PICKUP] stays NULL. */
+  const char *bat_sheet[ANIM_COUNT] = {
+    "idle-and-run-Sheet6",  /* ANIM_IDLE  */
+    "idle-and-run-Sheet6",  /* ANIM_RUN   */
+    "attack-Sheet4",         /* ANIM_PUNCH */
+    NULL,                    /* ANIM_PICKUP — not used for bat */
+  };
+
+  for (int a = 0; a < ANIM_COUNT; a++) {
+    if (!bat_sheet[a]) continue;
+    for (int d = 0; d < DIR_COUNT; d++) {
+      snprintf(path, sizeof(path),
+        "media/Character/Bat/Bat_%s_%s.png",
+        dir_names[d], bat_sheet[a]);
+      bat_textures[a][d] = load_sheet(renderer, path);
+      if (bat_textures[a][d]) {
+        float w, h;
+        SDL_GetTextureSize(bat_textures[a][d], &w, &h);
+        bat_frame_w[a][d] = w / frame_counts[a];
+        bat_frame_h[a][d] = h;
+      }
+    }
+  }
+  for (int a = 0; a < ANIM_COUNT; a++) {
+    if (!bat_sheet[a]) continue;
+    float extra = bat_frame_w[a][DIR_LEFT] - bat_frame_w[ANIM_IDLE][DIR_LEFT];
+    bat_anchor_x[a][DIR_LEFT] = extra > 0 ? extra : 0;
   }
 }
 
@@ -301,14 +343,14 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
   // SDL_RenderRect(renderer, &physics_screen);
 
   /* Attack hitbox — semi-transparent yellow overlay, useful for learning */
-  /* if (is_attacking) {
+  if (is_attacking) {
     SDL_FRect world_attack  = player_get_attack_rect();
     SDL_FRect screen_attack = camera_project(camera, world_attack);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 255, 255, 80, 80);
     SDL_RenderFillRect(renderer, &screen_attack);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
-  } */
+  }
 }
 
 void player_render_debug(SDL_Renderer *renderer, Camera camera) {
@@ -337,6 +379,8 @@ void player_reset(void) {
   anim_state    = ANIM_IDLE;
   anim_frame    = 0;
   anim_timer    = 0.0f;
+  bat_equipped  = false;
+  is_picking_up = false;
 }
 
 void player_destroy(void) {
@@ -347,6 +391,9 @@ void player_destroy(void) {
   for (int a = 0; a < ANIM_COUNT; a++)
     for (int d = 0; d < DIR_COUNT; d++)
       if (textures[a][d]) SDL_DestroyTexture(textures[a][d]);
+  for (int a = 0; a < ANIM_COUNT; a++)
+    for (int d = 0; d < DIR_COUNT; d++)
+      if (bat_textures[a][d]) SDL_DestroyTexture(bat_textures[a][d]);
 }
 
 /* -------------------------------------------------------------------------
@@ -369,13 +416,20 @@ void player_take_damage(int amount) {
   hit_cooldown = HIT_COOLDOWN_DURATION;
 }
 
+void player_equip_bat(void) {
+  is_picking_up = true;
+  anim_state    = ANIM_PICKUP;
+  anim_frame    = 0;
+  anim_timer    = 0.0f;
+}
+
 SDL_FRect player_get_attack_rect(void) {
   float ax = player.x, ay = player.y;
   switch (player.facing) {
-    case DIR_UP:    ay -= player.h; break;
-    case DIR_DOWN:  ay += player.h; break;
-    case DIR_LEFT:  ax -= player.w; break;
-    case DIR_RIGHT: ax += player.w; break;
+    case DIR_UP:    ay -= player.h * 0.3f; break;
+    case DIR_DOWN:  ay += player.h * 0.3f; break;
+    case DIR_LEFT:  ax -= player.w * 0.3f; break;
+    case DIR_RIGHT: ax += player.w * 0.3f; break;
     case DIR_COUNT:
       break;
     }

@@ -27,3 +27,4 @@ Direction player_get_facing(void);
 int       player_get_hp(void);
 int       player_get_max_hp(void);
 void      player_take_damage(int amount);
+void      player_equip_bat(void);

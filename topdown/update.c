@@ -1,5 +1,6 @@
 #include "update.h"
 #include "common.h"
+#include "weapon.h"
 #include "entity/player.h"
 #include "entity/enemy.h"
 
@@ -21,6 +22,7 @@ void app_update(void *appstate) {
     if (keys[SDL_SCANCODE_R]) {
       player_reset();
       enemies_reset();
+      weapon_reset();
       state->game_state = GAME_PLAYING;
     }
     return;
@@ -38,6 +40,10 @@ void app_update(void *appstate) {
    */
   SDL_FRect pr = player_get_rect();
   camera_follow(&state->camera, pr.x, pr.y, pr.w, pr.h);
+
+  /* 2b. Update weapon — check for E pickup */
+  weapon_update(player_get_rect());
+  if (weapon_just_picked_up()) player_equip_bat();
 
   /*
    * 3. Update enemies — pass them everything they need to make decisions:

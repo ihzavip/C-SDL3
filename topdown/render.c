@@ -2,6 +2,7 @@
 #include "common.h"
 #include "world.h"
 #include "tilemap.h"
+#include "weapon.h"
 #include "entity/player.h"
 #include "entity/enemy.h"
 
@@ -39,6 +40,7 @@ void app_render(void *appstate) {
    * is drawn last appears on top. Enemies are drawn before the player so the
    * player always appears "above" enemies visually.
    */
+  weapon_render(state->renderer, state->camera);
   enemies_render(state->renderer, state->camera);
   player_render(state->renderer, state->camera);
   // player_render_debug(state->renderer, state->camera); /* DEBUG: comment out to hide coords */

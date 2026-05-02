@@ -2,6 +2,7 @@
 #include "entity/player.h"
 #include "entity/enemy.h"
 #include "tilemap.h"
+#include "weapon.h"
 #include <stdio.h>
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result) {
@@ -10,6 +11,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
   player_destroy();           /* free player textures before destroying renderer */
   enemies_destroy_textures(); /* free enemy textures before destroying renderer */
   tilemap_destroy();
+  weapon_destroy();
 
   SDL_DestroyRenderer(state->renderer);
   state->renderer = NULL;
