@@ -48,7 +48,12 @@ static float frame_h[ANIM_COUNT][DIR_COUNT];
    Non-zero when the frame is wider than the body (e.g. punch-left fist extends left). */
 static float anchor_x[ANIM_COUNT][DIR_COUNT];
 
-/* Bat character sprite set — loaded at init, swapped in when bat is equipped */
+/* No-hands body sprites — drawn as base layer when bat is equipped */
+static SDL_Texture *nohands_textures[ANIM_COUNT][DIR_COUNT];
+static float nohands_frame_w[ANIM_COUNT][DIR_COUNT];
+static float nohands_frame_h[ANIM_COUNT][DIR_COUNT];
+
+/* Bat weapon overlay sprites — drawn on top of no-hands body when equipped */
 static SDL_Texture *bat_textures[ANIM_COUNT][DIR_COUNT];
 static float bat_frame_w[ANIM_COUNT][DIR_COUNT];
 static float bat_frame_h[ANIM_COUNT][DIR_COUNT];
@@ -209,6 +214,30 @@ void player_init(SDL_Renderer *renderer) {
     float extra = bat_frame_w[a][DIR_LEFT] - bat_frame_w[ANIM_IDLE][DIR_LEFT];
     bat_anchor_x[a][DIR_LEFT] = extra > 0 ? extra : 0;
   }
+
+  /* Load no-hands body sprites — base layer drawn beneath the bat weapon overlay */
+  const char *nohands_sfx[ANIM_COUNT] = {
+    "idle_no-hands-Sheet6",   /* ANIM_IDLE  */
+    "run_no-hands-Sheet6",    /* ANIM_RUN   */
+    "punch_no-hands-Sheet4",  /* ANIM_PUNCH */
+    NULL,                      /* ANIM_PICKUP — uses regular Pick-up sprite */
+  };
+
+  for (int a = 0; a < ANIM_COUNT; a++) {
+    if (!nohands_sfx[a]) continue;
+    for (int d = 0; d < DIR_COUNT; d++) {
+      snprintf(path, sizeof(path),
+        "media/Character/Main/%s/Character_%s_%s.png",
+        anim_dirs[a], dir_names[d], nohands_sfx[a]);
+      nohands_textures[a][d] = load_sheet(renderer, path);
+      if (nohands_textures[a][d]) {
+        float w, h;
+        SDL_GetTextureSize(nohands_textures[a][d], &w, &h);
+        nohands_frame_w[a][d] = w / frame_counts[a];
+        nohands_frame_h[a][d] = h;
+      }
+    }
+  }
 }
 
 void player_update(float delta) {
@@ -302,33 +331,52 @@ void player_update(float delta) {
 }
 
 void player_render(SDL_Renderer *renderer, Camera camera) {
-  int   dir          = (int)player.facing;
-  SDL_Texture *tex   = bat_equipped ? bat_textures[anim_state][dir] : textures[anim_state][dir];
-  float frame_width  = bat_equipped ? bat_frame_w[anim_state][dir]  : frame_w[anim_state][dir];
-  float frame_height = bat_equipped ? bat_frame_h[anim_state][dir]  : frame_h[anim_state][dir];
-  float ax           = bat_equipped ? bat_anchor_x[anim_state][dir] : anchor_x[anim_state][dir];
+  int dir = (int)player.facing;
+  bool blink = hit_cooldown > 0.0f && ((int)(hit_cooldown / 0.1f) % 2) == 0;
 
-  SDL_FRect src = { anim_frame * frame_width, 0, frame_width, frame_height + SPRITE_HEIGHT_PADDING };
+  if (bat_equipped) {
+    /* Layer 1: character body (no-hands) */
+    SDL_Texture *body_tex = nohands_textures[anim_state][dir];
+    float body_fw = nohands_frame_w[anim_state][dir];
+    float body_fh = nohands_frame_h[anim_state][dir];
+    SDL_FRect body_src  = { anim_frame * body_fw, 0, body_fw, body_fh + SPRITE_HEIGHT_PADDING };
+    SDL_FRect body_world = { player.x - anchor_x[anim_state][dir], player.y,
+                             body_fw, body_fh + SPRITE_HEIGHT_PADDING };
+    SDL_FRect body_dst = camera_project(camera, body_world);
+    if (body_tex) {
+      if (blink) SDL_SetTextureColorMod(body_tex, 255, 80, 80);
+      SDL_RenderTexture(renderer, body_tex, &body_src, &body_dst);
+      SDL_SetTextureColorMod(body_tex, 255, 255, 255);
+    }
 
-  float render_w = frame_width;
-  float render_h = frame_height + SPRITE_HEIGHT_PADDING;
-
-  SDL_FRect world_rect = {player.x - ax, player.y, render_w, render_h};
-
-
-  /* dst is destination for the camera?
-  */
-  SDL_FRect dst = camera_project(camera, world_rect);
-
-  if (tex) {
-    /* Blink red while invincible: toggle tint every 0.1s */
-    if (hit_cooldown > 0.0f && ((int)(hit_cooldown / 0.1f) % 2) == 0)
-      SDL_SetTextureColorMod(tex, 255, 80, 80);
-    SDL_RenderTexture(renderer, tex, &src, &dst);
-    SDL_SetTextureColorMod(tex, 255, 255, 255);
+    /* Layer 2: bat weapon overlay */
+    SDL_Texture *bat_tex = bat_textures[anim_state][dir];
+    float bat_fw = bat_frame_w[anim_state][dir];
+    float bat_fh = bat_frame_h[anim_state][dir];
+    SDL_FRect bat_src  = { anim_frame * bat_fw, 0, bat_fw, bat_fh };
+    SDL_FRect bat_world = { player.x - bat_anchor_x[anim_state][dir], player.y, bat_fw, bat_fh };
+    SDL_FRect bat_dst = camera_project(camera, bat_world);
+    if (bat_tex) {
+      if (blink) SDL_SetTextureColorMod(bat_tex, 255, 80, 80);
+      SDL_RenderTexture(renderer, bat_tex, &bat_src, &bat_dst);
+      SDL_SetTextureColorMod(bat_tex, 255, 255, 255);
+    }
   } else {
-    /* Fallback: colored rect if texture failed to load */ SDL_SetRenderDrawColor(renderer, 80, 200, 100, 255);
-    SDL_RenderFillRect(renderer, &dst);
+    SDL_Texture *tex   = textures[anim_state][dir];
+    float frame_width  = frame_w[anim_state][dir];
+    float frame_height = frame_h[anim_state][dir];
+    SDL_FRect src      = { anim_frame * frame_width, 0, frame_width, frame_height + SPRITE_HEIGHT_PADDING };
+    SDL_FRect world_rect = { player.x - anchor_x[anim_state][dir], player.y,
+                             frame_width, frame_height + SPRITE_HEIGHT_PADDING };
+    SDL_FRect dst = camera_project(camera, world_rect);
+    if (tex) {
+      if (blink) SDL_SetTextureColorMod(tex, 255, 80, 80);
+      SDL_RenderTexture(renderer, tex, &src, &dst);
+      SDL_SetTextureColorMod(tex, 255, 255, 255);
+    } else {
+      SDL_SetRenderDrawColor(renderer, 80, 200, 100, 255);
+      SDL_RenderFillRect(renderer, &dst);
+    }
   }
 
   /* DEBUG boxes — comment out either line to hide it
@@ -392,6 +440,9 @@ void player_destroy(void) {
   for (int a = 0; a < ANIM_COUNT; a++)
     for (int d = 0; d < DIR_COUNT; d++)
       if (bat_textures[a][d]) SDL_DestroyTexture(bat_textures[a][d]);
+  for (int a = 0; a < ANIM_COUNT; a++)
+    for (int d = 0; d < DIR_COUNT; d++)
+      if (nohands_textures[a][d]) SDL_DestroyTexture(nohands_textures[a][d]);
 }
 
 /* -------------------------------------------------------------------------
