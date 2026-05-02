@@ -302,28 +302,18 @@ void player_update(float delta) {
 }
 
 void player_render(SDL_Renderer *renderer, Camera camera) {
-  SDL_Texture *tex = textures[anim_state][(int)player.facing];
-
   int   dir          = (int)player.facing;
-  float frame_width  = frame_w[anim_state][dir];
-  float frame_height = frame_h[anim_state][dir];
+  SDL_Texture *tex   = bat_equipped ? bat_textures[anim_state][dir] : textures[anim_state][dir];
+  float frame_width  = bat_equipped ? bat_frame_w[anim_state][dir]  : frame_w[anim_state][dir];
+  float frame_height = bat_equipped ? bat_frame_h[anim_state][dir]  : frame_h[anim_state][dir];
+  float ax           = bat_equipped ? bat_anchor_x[anim_state][dir] : anchor_x[anim_state][dir];
 
-  /*
-   * Source rect: a window into the spritesheet selecting the current frame.
-   * The sheet is laid out left to right, so frame N starts at x = N * frame_width.
-   */
   SDL_FRect src = { anim_frame * frame_width, 0, frame_width, frame_height + SPRITE_HEIGHT_PADDING };
 
-  /*
-   * Destination rect: where on screen to draw it.
-   * We project the player's world position through the camera.
-   * The sprite size is used directly — no scaling needed since
-   * SDL_SetRenderLogicalPresentation already handles window scaling for us.
-   */
   float render_w = frame_width;
   float render_h = frame_height + SPRITE_HEIGHT_PADDING;
 
-  SDL_FRect world_rect = {player.x - anchor_x[anim_state][dir], player.y, render_w, render_h};
+  SDL_FRect world_rect = {player.x - ax, player.y, render_w, render_h};
 
 
   /* dst is destination for the camera?
