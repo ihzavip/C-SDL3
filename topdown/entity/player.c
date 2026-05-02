@@ -214,7 +214,27 @@ void player_init(SDL_Renderer *renderer) {
 void player_update(float delta) {
   const bool *keys = SDL_GetKeyboardState(NULL);
 
-  float step     = player.speed * delta;
+  if (hit_cooldown > 0.0f) hit_cooldown -= delta;
+
+  /* Pickup animation blocks all other input until it finishes */
+  if (is_picking_up) {
+    anim_timer += delta;
+    if (anim_timer >= frame_durations[ANIM_PICKUP]) {
+      anim_timer -= frame_durations[ANIM_PICKUP];
+      if (anim_frame < frame_counts[ANIM_PICKUP] - 1) {
+        anim_frame++;
+      } else {
+        bat_equipped  = true;
+        is_picking_up = false;
+        anim_state    = ANIM_IDLE;
+        anim_frame    = 0;
+        anim_timer    = 0.0f;
+      }
+    }
+    return;
+  }
+
+  float step      = player.speed * delta;
   bool  is_moving = false;
 
   if (keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP]) {
@@ -241,9 +261,6 @@ void player_update(float delta) {
   player.x = SDL_clamp(player.x, 0.0f, (float)WORLD_W - player.w);
   player.y = SDL_clamp(player.y, 0.0f, (float)WORLD_H - player.h);
 
-  /* Tick down invincibility window after being hit */
-  if (hit_cooldown > 0.0f) hit_cooldown -= delta;
-
   /* Attack input */
   if (keys[SDL_SCANCODE_SPACE] && !is_attacking) {
     is_attacking = true;
@@ -257,28 +274,19 @@ void player_update(float delta) {
     }
   }
 
-  /* --- Determine which animation should play ---------------------------- */
+  /* --- Determine which animation should play --- */
   AnimType new_anim;
-  if (is_attacking)  new_anim = ANIM_PUNCH;
+  if (is_attacking)   new_anim = ANIM_PUNCH;
   else if (is_moving) new_anim = ANIM_RUN;
-  else               new_anim = ANIM_IDLE;
+  else                new_anim = ANIM_IDLE;
 
-  /*
-   * If the animation changed, reset to frame 0.
-   * Without this, switching from run to idle would continue mid-sequence,
-   * which looks wrong.
-   */
   if (new_anim != anim_state) {
     anim_state = new_anim;
     anim_frame = 0;
     anim_timer = 0.0f;
   }
 
-  /* --- Advance animation frame ----------------------------------------- */
-  /*
-   * Idle holds frame 0 — its 6 frames look like a walk cycle which makes
-   * the character appear to slide when standing still.
-   */
+  /* --- Advance animation frame --- */
   anim_timer += delta;
   if (anim_timer >= frame_durations[anim_state]) {
     anim_timer -= frame_durations[anim_state];
