@@ -1,6 +1,7 @@
 #include "common.h"
 #include "entity/enemy.h"
 #include "entity/player.h"
+#include "tilemap.h"
 #include "world.h"
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
@@ -58,6 +59,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   player_init(state->renderer);
   enemies_load_textures(state->renderer);
   enemies_init();
+  tilemap_init(state->renderer);
 
   return SDL_APP_CONTINUE;
 }

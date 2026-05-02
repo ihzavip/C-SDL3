@@ -1,6 +1,7 @@
 #include "render.h"
 #include "common.h"
 #include "world.h"
+#include "tilemap.h"
 #include "entity/player.h"
 #include "entity/enemy.h"
 
@@ -15,32 +16,22 @@ void app_render(void *appstate) {
   SDL_SetRenderDrawColor(state->renderer, 60, 80, 60, 255);
   SDL_RenderClear(state->renderer);
 
-  /* --- World grid ------------------------------------------------------- */
+  /* --- Floor tiles -------------------------------------------------------- */
+  tilemap_render(state->renderer, state->camera);
+
+  /* --- World grid (debug) ------------------------------------------------ */
   /*
-   * Drawing a tile grid makes the camera pan clearly visible — you can see
-   * the world scrolling as you move. Without it, a solid-colour background
-   * makes it hard to tell whether the camera is actually moving.
-   *
-   * The grid lines exist in WORLD space. We convert each endpoint through the
-   * camera to get its SCREEN position before drawing.
-   *
-   * SDL_RenderLine(renderer, x1, y1, x2, y2) draws one straight line.
-   */
-  SDL_SetRenderDrawColor(state->renderer, 35, 42, 35, 255); /* slightly lighter */
-
-  float grid = 32.0f; /* world pixels between grid lines */
-
-  /* Vertical lines — iterate X from 0 to WORLD_W in steps of `grid` */
+  SDL_SetRenderDrawColor(state->renderer, 35, 42, 35, 255);
+  float grid = 32.0f;
   for (float wx = 0; wx <= WORLD_W; wx += grid) {
-    float sx = wx - state->camera.x; /* project X: subtract camera offset */
+    float sx = wx - state->camera.x;
     SDL_RenderLine(state->renderer, sx, 0, sx, (float)LOGICAL_H);
   }
-
-  /* Horizontal lines — iterate Y from 0 to WORLD_H in steps of `grid` */
   for (float wy = 0; wy <= WORLD_H; wy += grid) {
-    float sy = wy - state->camera.y; /* project Y: subtract camera offset */
+    float sy = wy - state->camera.y;
     SDL_RenderLine(state->renderer, 0, sy, (float)LOGICAL_W, sy);
   }
+  */
 
   /* --- Entities (back to front — painter's algorithm) ------------------- */
   /*
@@ -50,7 +41,7 @@ void app_render(void *appstate) {
    */
   enemies_render(state->renderer, state->camera);
   player_render(state->renderer, state->camera);
-  player_render_debug(state->renderer, state->camera); /* DEBUG: comment out to hide coords */
+  // player_render_debug(state->renderer, state->camera); /* DEBUG: comment out to hide coords */
 
   /* --- HUD: health bar -------------------------------------------------- */
   /*

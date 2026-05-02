@@ -68,6 +68,7 @@ static float attack_timer = 0.0f;
 
 #define ATTACK_DURATION      0.20f
 #define HIT_COOLDOWN_DURATION 1.0f  /* seconds of invincibility after being hit */
+#define SPRITE_HEIGHT_PADDING 2     /* extra px read from sheet to avoid foot clipping */
 
 static int   hp           = 5;
 static int   max_hp       = 5;
@@ -261,7 +262,7 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
    * Source rect: a window into the spritesheet selecting the current frame.
    * The sheet is laid out left to right, so frame N starts at x = N * frame_width.
    */
-  SDL_FRect src = { anim_frame * frame_width, 0, frame_width, frame_height };
+  SDL_FRect src = { anim_frame * frame_width, 0, frame_width, frame_height + SPRITE_HEIGHT_PADDING };
 
   /*
    * Destination rect: where on screen to draw it.
@@ -270,7 +271,7 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
    * SDL_SetRenderLogicalPresentation already handles window scaling for us.
    */
   float render_w = frame_width;
-  float render_h = frame_height;
+  float render_h = frame_height + SPRITE_HEIGHT_PADDING;
 
   SDL_FRect world_rect = {player.x - anchor_x[anim_state][dir], player.y, render_w, render_h};
 
@@ -293,11 +294,11 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
   /* DEBUG boxes — comment out either line to hide it
    * Green  = sprite frame  (frame_width × frame_height)
    * Red    = physics box   (player.w × player.h) */
-  SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-  SDL_RenderRect(renderer, &dst);
-  SDL_FRect physics_screen = camera_project(camera, (SDL_FRect){player.x, player.y, player.w, player.h});
-  SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-  SDL_RenderRect(renderer, &physics_screen);
+  // SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+  // SDL_RenderRect(renderer, &dst);
+  // SDL_FRect physics_screen = camera_project(camera, (SDL_FRect){player.x, player.y, player.w, player.h});
+  // SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+  // SDL_RenderRect(renderer, &physics_screen);
 
   /* Attack hitbox — semi-transparent yellow overlay, useful for learning */
   /* if (is_attacking) {
@@ -375,6 +376,8 @@ SDL_FRect player_get_attack_rect(void) {
     case DIR_DOWN:  ay += player.h; break;
     case DIR_LEFT:  ax -= player.w; break;
     case DIR_RIGHT: ax += player.w; break;
-  }
+    case DIR_COUNT:
+      break;
+    }
   return (SDL_FRect){ ax, ay, player.w, player.h };
 }

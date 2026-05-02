@@ -12,6 +12,7 @@
 #define ATTACK_DURATION   0.10f
 #define DEATH_FRAMES      6
 #define DEATH_DURATION    0.14f
+#define SPRITE_HEIGHT_PADDING 2  /* extra px read from sheet to avoid foot clipping */
 
 /* Spritesheets, one per direction (DIR_DOWN=0, DIR_UP=1, DIR_LEFT=2, DIR_RIGHT=3). */
 static SDL_Texture *textures_move[DIR_COUNT];
@@ -422,7 +423,7 @@ void enemies_render(SDL_Renderer *renderer, Camera camera) {
     float        fw  = atk ? frame_w_atk[dir]     : frame_w[dir];
     float        fh  = atk ? frame_h_atk[dir]     : frame_h[dir];
 
-    SDL_FRect src = { e->anim_frame * fw, 0, fw, fh };
+    SDL_FRect src = { e->anim_frame * fw, 0, fw, fh + SPRITE_HEIGHT_PADDING };
 
     /*
      * Centre the sprite on the physics box so the hitbox stays in the
@@ -430,8 +431,8 @@ void enemies_render(SDL_Renderer *renderer, Camera camera) {
      */
     SDL_FRect world_sprite = {
       e->base.x + e->base.w * 0.5f - fw * 0.5f,
-      e->base.y + e->base.h * 0.5f - fh * 0.5f,
-      fw, fh
+      e->base.y + e->base.h * 0.5f - (fh + SPRITE_HEIGHT_PADDING) * 0.5f,
+      fw, fh + SPRITE_HEIGHT_PADDING
     };
     SDL_FRect dst = camera_project(camera, world_sprite);
 
@@ -440,6 +441,11 @@ void enemies_render(SDL_Renderer *renderer, Camera camera) {
         SDL_SetTextureColorMod(tex, 255, 80, 80);
       SDL_RenderTexture(renderer, tex, &src, &dst);
       SDL_SetTextureColorMod(tex, 255, 255, 255);
+      /* DEBUG: green = sprite frame, red = physics box */
+      // SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+      // SDL_RenderRect(renderer, &dst);
+      // SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+      // SDL_RenderRect(renderer, &sr);
     } else {
       /* Fallback colored rect if texture failed to load */
       SDL_SetRenderDrawColor(renderer,
