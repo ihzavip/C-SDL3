@@ -423,13 +423,23 @@ void player_equip_bat(void) {
 
 SDL_FRect player_get_attack_rect(void) {
   float ax = player.x, ay = player.y;
-  switch (player.facing) {
-    case DIR_UP:    ay -= player.h * 0.3f; break;
-    case DIR_DOWN:  ay += player.h * 0.3f; break;
-    case DIR_LEFT:  ax -= player.w * 0.3f; break;
-    case DIR_RIGHT: ax += player.w * 0.3f; break;
-    case DIR_COUNT:
-      break;
+  if (bat_equipped) {
+    float reach = 20.0f;
+    switch (player.facing) {
+      case DIR_UP:    ay -= reach; break;
+      case DIR_DOWN:  ay += reach; break;
+      case DIR_LEFT:  ax -= reach; break;
+      case DIR_RIGHT: ax += reach; break;
+      case DIR_COUNT: break;
     }
+  } else {
+    switch (player.facing) {
+      case DIR_UP:    ay -= player.h; break;
+      case DIR_DOWN:  ay += player.h; break;
+      case DIR_LEFT:  ax -= player.w; break;
+      case DIR_RIGHT: ax += player.w; break;
+      case DIR_COUNT: break;
+    }
+  }
   return (SDL_FRect){ ax, ay, player.w, player.h };
 }
