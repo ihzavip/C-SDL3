@@ -24,7 +24,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     return SDL_APP_FAILURE;
   }
 
-  state->window = SDL_CreateWindow("Topdown", 1280, 720, SDL_WINDOW_RESIZABLE);
+  state->window = SDL_CreateWindow("Topdown Ihza", LOGICAL_W, LOGICAL_H, SDL_WINDOW_RESIZABLE);
   if (!state->window) {
     SDL_Log("Error creating window: %s", SDL_GetError());
     return SDL_APP_FAILURE;
@@ -56,7 +56,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   state->camera.y = 0;
 
   player_init(state->renderer);
-  // enemies_init();
+  enemies_load_textures(state->renderer);
+  enemies_init();
 
   return SDL_APP_CONTINUE;
 }

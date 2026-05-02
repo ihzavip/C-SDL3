@@ -1,9 +1,22 @@
 #include "enemy.h"
 #include "entity.h"
 #include "../camera.h"
+#include <SDL3_image/SDL_image.h>
 
-#define MAX_ENEMIES     6
-#define DETECTION_RADIUS 70.0f  /* world pixels — how close before chasing */
+#define MAX_ENEMIES       6
+#define DETECTION_RADIUS  70.0f  /* world pixels — how close before chasing */
+
+#define ANIM_FRAMES       6
+#define ANIM_DURATION     0.12f  /* seconds per frame */
+
+/*
+ * One spritesheet per direction for the idle-and-run animation.
+ * Indexed by Direction enum: DIR_DOWN=0, DIR_UP=1, DIR_LEFT=2, DIR_RIGHT=3.
+ * The bat sheet names map: down→"down", up→"up", left→"side-left", right→"side".
+ */
+static SDL_Texture *textures_move[4];
+static float        frame_w[4];
+static float        frame_h[4];
 
 /*
  * EnemyState — what the enemy is currently doing.
@@ -33,6 +46,9 @@ typedef struct {
   float patrol_ax, patrol_ay;
   float patrol_bx, patrol_by;
   bool  going_to_b; /* true → heading toward B, false → heading toward A */
+
+  int   anim_frame;
+  float anim_timer;
 } Enemy;
 
 /* The enemy array. `static` keeps it private to this file. */
@@ -64,6 +80,8 @@ static void add_enemy(float ax, float ay, float bx, float by) {
   e->patrol_bx   = bx;
   e->patrol_by   = by;
   e->going_to_b  = true;
+  e->anim_frame  = 0;
+  e->anim_timer  = 0.0f;
 }
 
 /*
@@ -125,6 +143,35 @@ static float centre_dist(SDL_FRect a, SDL_FRect b) {
  * Public functions
  * ------------------------------------------------------------------------- */
 
+void enemies_load_textures(SDL_Renderer *renderer) {
+  const char *dir_names[4] = { "down", "up", "side-left", "side" };
+
+  for (int d = 0; d < 4; d++) {
+    char path[128];
+    SDL_snprintf(path, sizeof(path),
+      "media/Character/Bat/Bat_%s_idle-and-run-Sheet6.png", dir_names[d]);
+
+    textures_move[d] = IMG_LoadTexture(renderer, path);
+    if (!textures_move[d]) {
+      SDL_Log("Failed to load enemy texture '%s': %s", path, SDL_GetError());
+      continue;
+    }
+    SDL_SetTextureBlendMode(textures_move[d], SDL_BLENDMODE_BLEND);
+
+    float tw, th;
+    SDL_GetTextureSize(textures_move[d], &tw, &th);
+    frame_w[d] = tw / ANIM_FRAMES;
+    frame_h[d] = th;
+  }
+}
+
+void enemies_destroy_textures(void) {
+  for (int d = 0; d < 4; d++) {
+    if (textures_move[d]) SDL_DestroyTexture(textures_move[d]);
+    textures_move[d] = NULL;
+  }
+}
+
 void enemies_init(void) {
   enemy_count = 0;
 
@@ -141,8 +188,12 @@ void enemies_init(void) {
   add_enemy(540, 290, 610, 290);  /* short horizontal patrol, bottom    */
 }
 
-void enemies_update(float delta, SDL_FRect player_rect,
+void enemies_reset(void) { enemies_init(); }
+
+bool enemies_update(float delta, SDL_FRect player_rect,
                     SDL_FRect attack_rect, bool player_attacking) {
+  bool hit_player = false;
+
   for (int i = 0; i < enemy_count; i++) {
     Enemy *e = &enemies[i];
 
@@ -194,57 +245,62 @@ void enemies_update(float delta, SDL_FRect player_rect,
       else
         move_toward(e, tx, ty, delta);
     }
+
+    /* --- Player contact damage ------------------------------------------ */
+    if (e->state == ENEMY_CHASE && rects_overlap(erect, player_rect))
+      hit_player = true;
+
+    /* --- Animation -------------------------------------------------------- */
+    e->anim_timer += delta;
+    if (e->anim_timer >= ANIM_DURATION) {
+      e->anim_timer -= ANIM_DURATION;
+      e->anim_frame  = (e->anim_frame + 1) % ANIM_FRAMES;
+    }
   }
+
+  return hit_player;
 }
 
 void enemies_render(SDL_Renderer *renderer, Camera camera) {
   for (int i = 0; i < enemy_count; i++) {
-    Enemy    *e         = &enemies[i];
-    SDL_FRect world_rect  = { e->base.x, e->base.y, e->base.w, e->base.h };
-
-    /*
-     * camera_project converts world coordinates to screen coordinates.
-     * Every entity must do this before rendering — never pass world coords
-     * directly to SDL draw calls.
-     */
-    SDL_FRect sr = camera_project(camera, world_rect); /* sr = screen rect */
+    Enemy    *e  = &enemies[i];
+    SDL_FRect phys = { e->base.x, e->base.y, e->base.w, e->base.h };
+    SDL_FRect sr   = camera_project(camera, phys);
 
     if (e->state == ENEMY_DEAD) {
-      /* Dead: draw a small dark blood splat, slightly wider than the body */
       SDL_SetRenderDrawColor(renderer, 60, 10, 10, 255);
       SDL_FRect splat = { sr.x - 1, sr.y + 2, sr.w + 2, sr.h - 2 };
       SDL_RenderFillRect(renderer, &splat);
       continue;
     }
 
-    /* Outline — draw 1 px larger rect first, body covers the inside */
-    SDL_SetRenderDrawColor(renderer, 60, 20, 20, 255);
-    SDL_FRect outline = { sr.x - 1, sr.y - 1, sr.w + 2, sr.h + 2 };
-    SDL_RenderFillRect(renderer, &outline);
+    int           dir = (int)e->base.facing;
+    SDL_Texture  *tex = textures_move[dir];
+    float         fw  = frame_w[dir];
+    float         fh  = frame_h[dir];
+
+    SDL_FRect src = { e->anim_frame * fw, 0, fw, fh };
 
     /*
-     * Body colour signals intent:
-     *   orange-brown → patrolling, unaware
-     *   bright red   → chasing the player (dangerous!)
+     * Centre the sprite on the physics box so the hitbox stays in the
+     * middle of the visible sprite regardless of frame size.
      */
-    if (e->state == ENEMY_CHASE)
-      SDL_SetRenderDrawColor(renderer, 220, 40, 40, 255);
-    else
-      SDL_SetRenderDrawColor(renderer, 180, 110, 40, 255);
-    SDL_RenderFillRect(renderer, &sr);
+    SDL_FRect world_sprite = {
+      e->base.x + e->base.w * 0.5f - fw * 0.5f,
+      e->base.y + e->base.h * 0.5f - fh * 0.5f,
+      fw, fh
+    };
+    SDL_FRect dst = camera_project(camera, world_sprite);
 
-    /* Facing pip — same technique as the player */
-    SDL_SetRenderDrawColor(renderer, 255, 190, 190, 255);
-    float cx = sr.x + sr.w * 0.5f - 1;
-    float cy = sr.y + sr.h * 0.5f - 1;
-    SDL_FRect pip;
-    switch (e->base.facing) {
-      case DIR_UP:    pip = (SDL_FRect){ cx,           sr.y + 1,          2, 2 }; break;
-      case DIR_DOWN:  pip = (SDL_FRect){ cx,           sr.y + sr.h - 3,   2, 2 }; break;
-      case DIR_LEFT:  pip = (SDL_FRect){ sr.x + 1,     cy,                2, 2 }; break;
-      case DIR_RIGHT: pip = (SDL_FRect){ sr.x + sr.w - 3, cy,            2, 2 }; break;
-      default:        pip = (SDL_FRect){ cx,           cy,                2, 2 }; break;
+    if (tex) {
+      SDL_RenderTexture(renderer, tex, &src, &dst);
+    } else {
+      /* Fallback colored rect if texture failed to load */
+      SDL_SetRenderDrawColor(renderer,
+        e->state == ENEMY_CHASE ? 220 : 180,
+        e->state == ENEMY_CHASE ?  40 : 110,
+        40, 255);
+      SDL_RenderFillRect(renderer, &sr);
     }
-    SDL_RenderFillRect(renderer, &pip);
   }
 }
