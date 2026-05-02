@@ -42,6 +42,10 @@ static const float frame_durations[ANIM_COUNT] = {
 static float frame_w[ANIM_COUNT][4];
 static float frame_h[ANIM_COUNT][4];
 
+/* How far the body's left edge sits from the frame's left edge, per (anim, dir).
+   Non-zero when the frame is wider than the body (e.g. punch-left fist extends left). */
+static float anchor_x[ANIM_COUNT][4];
+
 /*
  * Texture table: one texture per (animation, direction) pair.
  * Indexed as textures[AnimType][Direction].
@@ -62,7 +66,12 @@ static Entity player;
 static bool  is_attacking = false;
 static float attack_timer = 0.0f;
 
-#define ATTACK_DURATION   0.20f// 0,15
+#define ATTACK_DURATION      0.20f
+#define HIT_COOLDOWN_DURATION 1.0f  /* seconds of invincibility after being hit */
+
+static int   hp           = 5;
+static int   max_hp       = 5;
+static float hit_cooldown = 0.0f;
 
 /* -------------------------------------------------------------------------
  * Texture loading helper
@@ -142,11 +151,18 @@ void player_init(SDL_Renderer *renderer) {
       if (textures[a][d]) {
         float target_width, target_height;
         SDL_GetTextureSize(textures[a][d], &target_width, &target_height);
-        printf("tw: %f", target_width);
         frame_w[a][d] = target_width / frame_counts[a];
         frame_h[a][d] = target_height;
       }
     }
+  }
+
+  /* Compute anchor offsets now that all frame widths are known.
+     For left-facing animations, extra width is on the left (fist/weapon side),
+     so the body is shifted right by that amount. */
+  for (int a = 0; a < ANIM_COUNT; a++) {
+    float extra = frame_w[a][DIR_LEFT] - frame_w[ANIM_IDLE][DIR_LEFT];
+    anchor_x[a][DIR_LEFT] = extra > 0 ? extra : 0;
   }
 }
 
@@ -179,6 +195,9 @@ void player_update(float delta) {
 
   player.x = SDL_clamp(player.x, 0.0f, (float)WORLD_W - player.w);
   player.y = SDL_clamp(player.y, 0.0f, (float)WORLD_H - player.h);
+
+  /* Tick down invincibility window after being hit */
+  if (hit_cooldown > 0.0f) hit_cooldown -= delta;
 
   /* Attack input */
   if (keys[SDL_SCANCODE_SPACE] && !is_attacking) {
@@ -251,15 +270,11 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
   float render_w = frame_width;
   float render_h = frame_height;
 
-  SDL_FRect world_rect = {player.x, player.y, render_w, render_h};
-
-  /* Left punch: wider frame has body on the right side, so shift draw position
-     left by the extra width to keep the body visually anchored. */
-  if (anim_state == ANIM_PUNCH && player.facing == DIR_LEFT)
-    world_rect.x -= frame_width - frame_w[ANIM_IDLE][(int)player.facing];
+  SDL_FRect world_rect = {player.x - anchor_x[anim_state][dir], player.y, render_w, render_h};
 
   /*
   dst is destination
+  to render 
   */
   SDL_FRect dst = camera_project(camera, world_rect);
 
@@ -306,6 +321,19 @@ void player_render_debug(SDL_Renderer *renderer, Camera camera) {
   SDL_RenderDebugText(renderer, dst.x, dst.y + dst.h + 2, buf);
 }
 
+void player_reset(void) {
+  player.x      = WORLD_W * 0.5f - 6;
+  player.y      = WORLD_H * 0.5f - 8;
+  player.facing = DIR_DOWN;
+  hp            = max_hp;
+  hit_cooldown  = 0.0f;
+  is_attacking  = false;
+  attack_timer  = 0.0f;
+  anim_state    = ANIM_IDLE;
+  anim_frame    = 0;
+  anim_timer    = 0.0f;
+}
+
 void player_destroy(void) {
   /*
    * SDL_DestroyTexture frees the GPU memory used by the texture.
@@ -326,6 +354,15 @@ SDL_FRect player_get_rect(void) {
 
 bool      player_is_attacking(void) { return is_attacking; }
 Direction player_get_facing(void)   { return player.facing; }
+int       player_get_hp(void)       { return hp; }
+int       player_get_max_hp(void)   { return max_hp; }
+
+void player_take_damage(int amount) {
+  if (hit_cooldown > 0.0f) return; /* still invincible from last hit */
+  hp -= amount;
+  if (hp < 0) hp = 0;
+  hit_cooldown = HIT_COOLDOWN_DURATION;
+}
 
 SDL_FRect player_get_attack_rect(void) {
   float ax = player.x, ay = player.y;

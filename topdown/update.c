@@ -15,6 +15,17 @@ void app_update(void *appstate) {
   state->current_tick = SDL_GetTicks();
   state->delta_time   = (state->current_tick - state->last_tick) / 1000.0f;
 
+  /* On the death screen only listen for R to restart — skip all game logic. */
+  if (state->game_state == GAME_DEAD) {
+    const bool *keys = SDL_GetKeyboardState(NULL);
+    if (keys[SDL_SCANCODE_R]) {
+      player_reset();
+      enemies_reset();
+      state->game_state = GAME_PLAYING;
+    }
+    return;
+  }
+
   /* 1. Move the player (reads keyboard state internally) */
   player_update(state->delta_time);
 
@@ -33,8 +44,13 @@ void app_update(void *appstate) {
    *    - Where the player is (for detection radius and chase targeting)
    *    - The attack hitbox + whether it's active (for hit detection)
    */
-  enemies_update(state->delta_time,
-                 player_get_rect(),
-                 player_get_attack_rect(),
-                 player_is_attacking());
+  bool hit = enemies_update(state->delta_time,
+                            player_get_rect(),
+                            player_get_attack_rect(),
+                            player_is_attacking());
+  if (hit) player_take_damage(1);
+
+  /* 4. Check for player death */
+  if (player_get_hp() == 0)
+    state->game_state = GAME_DEAD;
 }

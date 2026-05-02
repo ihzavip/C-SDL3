@@ -3,6 +3,11 @@
 #include <SDL3/SDL.h>
 #include "camera.h"
 
+typedef enum {
+  GAME_PLAYING,
+  GAME_DEAD,
+} GameState;
+
 typedef struct AppState {
   SDL_Window *window;
   SDL_Renderer *renderer;
@@ -34,5 +39,6 @@ typedef struct AppState {
    * It is updated every frame in update.c to follow the player, then
    * passed to render functions so they can project world→screen coords.
    */
-  Camera camera;
+  Camera    camera;
+  GameState game_state;
 } AppState;

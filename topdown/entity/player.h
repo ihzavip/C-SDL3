@@ -9,6 +9,7 @@
  * a texture — both steps need the renderer.
  */
 void player_init(SDL_Renderer *renderer);
+void player_reset(void); /* restart: resets position, hp, animation — no texture reload */
 void player_update(float delta);
 
 /*
@@ -21,5 +22,8 @@ void player_destroy(void); /* free all loaded textures */
 
 SDL_FRect player_get_rect(void);
 SDL_FRect player_get_attack_rect(void);
-bool player_is_attacking(void);
+bool      player_is_attacking(void);
 Direction player_get_facing(void);
+int       player_get_hp(void);
+int       player_get_max_hp(void);
+void      player_take_damage(int amount);
