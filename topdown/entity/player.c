@@ -274,9 +274,8 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
 
   SDL_FRect world_rect = {player.x - anchor_x[anim_state][dir], player.y, render_w, render_h};
 
-  /*
-  dst is destination
-  to render 
+
+  /* dst is destination for the camera?
   */
   SDL_FRect dst = camera_project(camera, world_rect);
 
@@ -287,8 +286,7 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
     SDL_RenderTexture(renderer, tex, &src, &dst);
     SDL_SetTextureColorMod(tex, 255, 255, 255);
   } else {
-    /* Fallback: colored rect if texture failed to load */
-    SDL_SetRenderDrawColor(renderer, 80, 200, 100, 255);
+    /* Fallback: colored rect if texture failed to load */ SDL_SetRenderDrawColor(renderer, 80, 200, 100, 255);
     SDL_RenderFillRect(renderer, &dst);
   }
 

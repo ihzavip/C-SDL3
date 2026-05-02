@@ -50,7 +50,7 @@ void app_render(void *appstate) {
    */
   enemies_render(state->renderer, state->camera);
   player_render(state->renderer, state->camera);
-  // player_render_debug(state->renderer, state->camera); /* DEBUG: comment out to hide coords */
+  player_render_debug(state->renderer, state->camera); /* DEBUG: comment out to hide coords */
 
   /* --- HUD: health bar -------------------------------------------------- */
   /*
