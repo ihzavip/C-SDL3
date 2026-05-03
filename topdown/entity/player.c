@@ -29,7 +29,7 @@ static const int frame_counts[ANIM_COUNT] = {6, 6, 4, 3};
 
 /* How long (seconds) each frame is shown before advancing to the next */
 static const float frame_durations[ANIM_COUNT] = {
-    0.18f, /* idle:  slow, relaxed */
+    0.12f, /* idle:  slow, relaxed */
     0.10f, /* run:   one step every ~100ms */
     0.04f, /* punch: very snappy */
     0.08f, /* pickup: 3 frames x 80ms = 240ms total */
@@ -96,7 +96,7 @@ static float attack_timer = 0.0f;
 #define HIT_COOLDOWN_DURATION                                                  \
   1.0f /* seconds of invincibility after being hit */
 #define SPRITE_HEIGHT_PADDING                                                  \
-  0 /* extra px read from sheet to avoid foot clipping */
+  2 /* extra px read from sheet to avoid foot clipping */
 
 static int hp = 5;
 static int max_hp = 5;
@@ -126,6 +126,7 @@ static SDL_Texture *load_sheet(SDL_Renderer *renderer, const char *path) {
    * Without this, transparent pixels in the PNG are drawn as black.
    */
   SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+  SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
   return tex;
 }
 
@@ -136,7 +137,7 @@ void player_init(SDL_Renderer *renderer) {
   player.y = WORLD_H * 0.5f - 8;
   player.w = 13; /* match idle frame width  */
   player.h = 16; /* match idle frame height */
-  player.speed = 60;
+  player.speed = 90;
   player.facing = DIR_DOWN;
 
   /*
@@ -192,10 +193,10 @@ void player_init(SDL_Renderer *renderer) {
   /* Compute anchor offsets now that all frame widths are known.
      For left-facing animations, extra width is on the left (fist/weapon side),
      so the body is shifted right by that amount. */
-  for (int a = 0; a < ANIM_COUNT; a++) {
-    float extra = frame_w[a][DIR_LEFT] - frame_w[ANIM_IDLE][DIR_LEFT];
-    anchor_x[a][DIR_LEFT] = extra > 0 ? extra : 0;
-  }
+  // for (int a = 0; a < ANIM_COUNT; a++) {
+  //   float extra = frame_w[a][DIR_LEFT] - frame_w[ANIM_IDLE][DIR_LEFT];
+  //   anchor_x[a][DIR_LEFT] = extra > 0 ? extra : 0;
+  // }
 
   /* Load bat character sprites — used after the bat is picked up.
      ANIM_IDLE and ANIM_RUN share the same idle-and-run sheet (loaded
@@ -208,21 +209,21 @@ void player_init(SDL_Renderer *renderer) {
       NULL,                  /* ANIM_PICKUP — not used for bat */
   };
 
-  for (int a = 0; a < ANIM_COUNT; a++) {
-    if (!bat_sheet[a])
-      continue;
-    for (int d = 0; d < DIR_COUNT; d++) {
-      snprintf(path, sizeof(path), "media/Character/Bat/Bat_%s_%s.png",
-               dir_names[d], bat_sheet[a]);
-      bat_textures[a][d] = load_sheet(renderer, path);
-      if (bat_textures[a][d]) {
-        float w, h;
-        SDL_GetTextureSize(bat_textures[a][d], &w, &h);
-        bat_frame_w[a][d] = w / frame_counts[a];
-        bat_frame_h[a][d] = h;
-      }
-    }
-  }
+  // for (int a = 0; a < ANIM_COUNT; a++) {
+  //   if (!bat_sheet[a])
+  //     continue;
+  //   for (int d = 0; d < DIR_COUNT; d++) {
+  //     snprintf(path, sizeof(path), "media/Character/Bat/Bat_%s_%s.png",
+  //              dir_names[d], bat_sheet[a]);
+  //     bat_textures[a][d] = load_sheet(renderer, path);
+  //     if (bat_textures[a][d]) {
+  //       float w, h;
+  //       SDL_GetTextureSize(bat_textures[a][d], &w, &h);
+  //       bat_frame_w[a][d] = w / frame_counts[a];
+  //       bat_frame_h[a][d] = h;
+  //     }
+  //   }
+  // }
   /*
    * bat_anchor_x for DIR_LEFT: the bat arm sits at the RIGHT side of the
    * left-facing bat frame.  We shift the render position left so the arm
@@ -231,12 +232,12 @@ void player_init(SDL_Renderer *renderer) {
    * Formula: bat_fw - nohands_fw_idle  (nohands idle = narrowest body frame,
    * gives the amount of "bat-head overhang" to the left).
    */
-  for (int a = 0; a < ANIM_COUNT; a++) {
-    if (!bat_sheet[a])
-      continue;
-    bat_anchor_x[a][DIR_LEFT] =
-        bat_frame_w[a][DIR_LEFT] - nohands_frame_w[ANIM_IDLE][DIR_LEFT];
-  }
+  // for (int a = 0; a < ANIM_COUNT; a++) {
+  //   if (!bat_sheet[a])
+  //     continue;
+  //   bat_anchor_x[a][DIR_LEFT] =
+  //       bat_frame_w[a][DIR_LEFT] - nohands_frame_w[ANIM_IDLE][DIR_LEFT];
+  // }
 
   /* Load no-hands body sprites — base layer drawn beneath the bat weapon
      overlay sfx means suffix
@@ -259,8 +260,11 @@ void player_init(SDL_Renderer *renderer) {
       if (nohands_textures[a][d]) {
         float w, h;
         SDL_GetTextureSize(nohands_textures[a][d], &w, &h);
+        printf("a=%d d=%d sfx=%s, w=%f\n", a, d, nohands_sfx[a], w);
         nohands_frame_w[a][d] = w / frame_counts[a];
         nohands_frame_h[a][d] = h;
+      } else {
+        printf("a=%d d=%d sfx=%s FAILED\n", a, d, nohands_sfx[a]);
       }
     }
   }
@@ -278,14 +282,14 @@ void player_init(SDL_Renderer *renderer) {
    * them to the bottom of the body frame so they sit at arm level.
    * y_offset = body_frame_h - bat_frame_h (differs per direction).
    */
-  for (int a = 0; a < ANIM_COUNT; a++) {
-    if (!bat_sheet[a])
-      continue;
-    for (int d = 0; d < DIR_COUNT; d++) {
-      if (nohands_textures[a][d] && bat_textures[a][d])
-        bat_y_offset[a][d] = nohands_frame_h[a][d] - bat_frame_h[a][d];
-    }
-  }
+  // for (int a = 0; a < ANIM_COUNT; a++) {
+  //   if (!bat_sheet[a])
+  //     continue;
+  //   for (int d = 0; d < DIR_COUNT; d++) {
+  //     if (nohands_textures[a][d] && bat_textures[a][d])
+  //       bat_y_offset[a][d] = nohands_frame_h[a][d] - bat_frame_h[a][d];
+  //   }
+  // }
 
   /* Hands overlay (filenames use inconsistent capitalisation) */
   const char *hands_paths[ANIM_COUNT][DIR_COUNT] = {
@@ -451,6 +455,7 @@ void player_render(SDL_Renderer *renderer, Camera camera) {
     float ax = nohands_anchor_x[anim_state][dir];
     SDL_FRect src = {anim_frame * frame_width, 0, frame_width,
                      frame_height + SPRITE_HEIGHT_PADDING};
+    // TODO: - 2
     SDL_FRect world_rect = {player.x - ax, player.y, frame_width,
                             frame_height + SPRITE_HEIGHT_PADDING};
     SDL_FRect dst = camera_project(camera, world_rect);
