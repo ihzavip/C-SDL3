@@ -60,8 +60,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   player_init(state->renderer);
   SDL_FRect pr = player_get_rect();
   weapon_init(state->renderer, pr.x + 20, pr.y);
-  // enemies_load_textures(state->renderer);
-  // enemies_init();
+  enemies_load_textures(state->renderer);
+  enemies_init();
   tilemap_init(state->renderer);
 
   return SDL_APP_CONTINUE;
